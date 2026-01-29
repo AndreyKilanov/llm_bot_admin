@@ -1,0 +1,7 @@
+.venv
+.idea
+.env
+.git
+__pycache__
+*.pyc
+.roomodes

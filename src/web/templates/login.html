@@ -1,0 +1,53 @@
+{% extends "layout.html" %}
+
+{% block title %}Вход - LLM Bot{% endblock %}
+
+{% block content_full %}
+<div class="login-page">
+    <div class="card login-card" style="position: relative; padding-bottom: 2.5rem;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+            <h2 class="flex" style="margin: 0;">
+                <i data-lucide="lock" style="color: var(--accent-primary)"></i>
+                Вход в систему
+            </h2>
+            <button id="theme-toggle-login" class="btn-icon" onclick="toggleTheme()" title="Переключить тему"
+                style="flex-shrink: 0;">
+                <i data-lucide="sun"></i>
+            </button>
+        </div>
+
+        <form action="/admin/login" method="POST" class="form-group">
+            <div>
+                <label for="username" style="display:block; margin-bottom:0.5rem; font-weight: 500;">Имя пользователя</label>
+                <input type="text" id="username" name="username" required autofocus placeholder="Введите логин">
+            </div>
+
+            <div>
+                <label for="password" style="display:block; margin-bottom:0.5rem; font-weight: 500;">Пароль</label>
+                <input type="password" id="password" name="password" required placeholder="Введите пароль">
+            </div>
+
+            <button type="submit" class="btn btn-primary flex"
+                style="width: 100%; justify-content: center; gap: 0.5rem;">
+                <i data-lucide="log-in" style="width: 18px; height: 18px;"></i>
+                Войти
+            </button>
+        </form>
+
+        {% if error %}
+        <div style="
+            position: absolute;
+            bottom: 1rem;
+            left: 0;
+            right: 0;
+            text-align: center;
+            color: var(--danger);
+            font-size: 0.9rem;
+            pointer-events: none;
+        ">
+            {{ error }}
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

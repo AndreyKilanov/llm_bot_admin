@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}LLM Bot Admin{% endblock %}</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/style.css">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="/static/js/main.js" defer></script>
+</head>
+
+<body>
+    <div id="toast"></div>
+
+    {% if no_header %}
+    {% block content_full %}{% endblock %}
+    {% else %}
+    <div class="container">
+        <header>
+            <div class="flex">
+                <i data-lucide="bot" style="color: var(--accent-primary); width: 24px; height: 24px;"></i>
+                <h1>LLM Bot Admin</h1>
+            </div>
+            <div class="flex">
+                {% if user %}
+                <span
+                    style="margin-right: 1rem; color: var(--text-secondary); display: flex; align-items: center; gap: 0.5rem;">
+                    <i data-lucide="user" style="width: 16px; height: 16px;"></i>
+                    {{ user }}
+                </span>
+                <a href="/admin/logout" class="btn btn-danger"
+                    style="text-decoration:none; padding: 0.4rem 0.8rem; font-size: 0.8rem; display: flex; align-items: center; gap: 0.4rem;">
+                    <i data-lucide="log-out" style="width: 16px; height: 16px;"></i>
+                    Выйти
+                </a>
+                {% endif %}
+            <button class="btn-icon" onclick="openSettingsModal()" title="Настройки" style="margin-right: 0.5rem">
+                <i data-lucide="settings"></i>
+            </button>
+            <button id="theme-toggle" class="btn-icon" onclick="toggleTheme()" title="Переключить тему">
+                <i data-lucide="sun"></i>
+            </button>
+            </div>
+        </header>
+
+        <main>
+            {% block content %}{% endblock %}
+        </main>
+    </div>
+    {% endif %}
+</body>
+
+</html>
