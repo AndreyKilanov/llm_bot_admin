@@ -6,7 +6,7 @@ from aiogram.types import Message
 from src.logger import log_function
 
 from config import Settings
-from src.llm.openrouter import get_completion
+from src.llm import LLMClient
 from src.services import HistoryService, LLMService, SettingsService
 
 router = Router()
@@ -158,7 +158,7 @@ async def on_text(message: Message) -> None:
     await message.bot.send_chat_action(chat_id=chat_id, action=ChatAction.TYPING)
 
     try:
-        reply = await get_completion(
+        reply = await LLMClient.get_completion(
             messages,
             api_key=api_key,
             model=model,

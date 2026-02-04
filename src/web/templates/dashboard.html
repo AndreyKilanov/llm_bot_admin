@@ -113,16 +113,22 @@
         <div class="modal-body">
             <div class="form-group">
                 <input type="text" id="conn_name" placeholder="Название (например, OpenAI)">
-                <select id="conn_provider" onchange="onProviderChange()">
-                    <option value="" disabled selected>Выберите провайдера...</option>
-                    <option value="openrouter">OpenRouter</option>
-                    <option value="openai">OpenAI</option>
-                    <option value="anthropic">Anthropic</option>
-                    <option value="google">Google (Gemini)</option>
-                    <option value="deepseek">DeepSeek</option>
-                    <option value="groq">Groq</option>
-                    <option value="custom">Другой (Custom)</option>
-                </select>
+                <input type="hidden" id="conn_provider">
+                <div class="custom-dropdown" data-input-id="conn_provider">
+                    <div class="dropdown-trigger">
+                        <span class="selected-text">Выберите провайдера...</span>
+                        <i data-lucide="chevron-down" class="dropdown-arrow"
+                            style="width: 16px; height: 16px; color: var(--text-secondary);"></i>
+                    </div>
+                    <div class="dropdown-menu">
+                        {% for key, url in providers.items() %}
+                        <div class="dropdown-option" data-value="{{ key }}">
+                            {{ provider_names.get(key, key|title) }}
+                        </div>
+                        {% endfor %}
+                        <div class="dropdown-option" data-value="custom">Другой (Custom)</div>
+                    </div>
+                </div>
                 <input type="text" id="conn_model" placeholder="Модель (gpt-4o, anthropic/claude-3)">
                 <input type="password" id="conn_key" placeholder="API Key">
                 <input type="text" id="conn_url" placeholder="Base URL (optional)">
@@ -163,20 +169,19 @@
         <div class="modal-body">
             <div id="prompts_list"></div>
 
-            <div class="card" style="margin-top: 1.5rem; background: rgba(255,255,255,0.02)">
+            <div id="prompt_form" class="card" style="margin-top: 1.5rem; background: rgba(255,255,255,0.02)">
                 <h3 id="prompt_form_title" style="margin-bottom:1.25rem">Добавить промпт</h3>
                 <div class="form-group">
                     <input type="text" id="prompt_name" placeholder="Название промпта">
                     <textarea id="prompt_content" placeholder="Текст системного промпта" rows="5"></textarea>
-                    <div class="flex" style="margin-top: 1rem;">
-                        <button id="prompt_submit_btn" onclick="submitPrompt()" class="btn btn-primary flex">
+                    <div class="flex justify-end" style="margin-top: 1.5rem; gap: 1rem;">
+                        <button id="prompt_cancel_btn" onclick="cancelEditPrompt()" class="btn"
+                            style="display:none; background:transparent; border:1px solid var(--border-color);">
+                            Отмена
+                        </button>
+                        <button id="prompt_submit_btn" onclick="submitPrompt()" class="btn btn-primary">
                             <i data-lucide="plus-square" style="width: 16px; height: 16px;"></i>
                             Добавить промпт
-                        </button>
-                        <button id="prompt_cancel_btn" onclick="cancelEditPrompt()" class="btn flex"
-                            style="display:none; background:transparent; border:1px solid var(--border-color);">
-                            <i data-lucide="x" style="width: 16px; height: 16px;"></i>
-                            Отмена
                         </button>
                     </div>
                 </div>
@@ -239,11 +244,10 @@
             <p id="confirm_message"
                 style="margin:0; color: var(--text-secondary); font-size: 1.05rem; line-height: 1.6;"></p>
         </div>
-        <div class="flex" style="gap: 1rem; justify-content: center; width: 100%;">
-            <button id="confirm_ok_btn" class="btn btn-primary"
-                style="min-width: 120px; justify-content: center; height: 48px;">ОК</button>
+        <div class="modal-actions" style="justify-content: center;">
+            <button id="confirm_ok_btn" class="btn btn-primary" style="height: 48px;">ОК</button>
             <button id="confirm_cancel_btn" class="btn"
-                style="min-width: 120px; justify-content: center; height: 48px; background: rgba(255,255,255,0.03); border: 1px solid var(--border-color); color: var(--text-secondary);">Отмена</button>
+                style="height: 48px; background: rgba(255,255,255,0.03); border: 1px solid var(--border-color); color: var(--text-secondary);">Отмена</button>
         </div>
     </div>
 </div>

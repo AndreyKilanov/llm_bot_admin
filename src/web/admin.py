@@ -1,3 +1,4 @@
+import time
 from pathlib import Path
 from typing import Annotated
 
@@ -7,6 +8,7 @@ from fastapi.templating import Jinja2Templates
 
 from src.services import HistoryService, LLMService, SettingsService, UserService
 from src.database.models import AllowedChat, Setting
+from config import settings
 
 BASE_DIR = Path(__file__).resolve().parent
 
@@ -77,7 +79,21 @@ async def admin_page(
             "stats": stats,
             "chats": chats,
             "prompt": System_prompt,
-            "connections": connections
+            "connections": connections,
+            "now_timestamp": int(time.time()),
+            "providers": settings.PROVIDER_DEFAULT_URLS,
+            "provider_names": {
+                "openrouter": "OpenRouter",
+                "openai": "OpenAI",
+                "anthropic": "Anthropic",
+                "google": "Google (Gemini)",
+                "deepseek": "DeepSeek",
+                "groq": "Groq",
+                "together": "Together AI",
+                "mistral": "Mistral AI",
+                "xai": "xAI (Grok)",
+                "ollama": "Ollama"
+            }
         }
     )
 
