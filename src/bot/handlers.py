@@ -3,10 +3,8 @@ from aiogram.enums import ChatAction, ChatType
 from aiogram.filters import Command
 from aiogram.types import Message
 
-from src.logger import log_function
-
 from config import Settings
-from src.llm import LLMClient
+from src.logger import log_function
 from src.services import HistoryService, LLMService, SettingsService
 
 router = Router()
@@ -33,7 +31,7 @@ async def cmd_start(message: Message) -> None:
 
 @router.message(Command("clear"))
 async def cmd_clear(message: Message) -> None:
-    await HistoryService.clear_history(message.chat.id)
+    await HistoryService.clear_history(message.chat.id, platform="telegram")
     await message.answer("История очищена.")
 
 
@@ -136,37 +134,32 @@ async def on_text(message: Message) -> None:
 
     # === ОБРАБОТКА ЗАПРОСА К LLM ===
     chat_id = message.chat.id
-    await HistoryService.add_message(chat_id, "user", user_text)
-    settings = Settings()
-    active_conn = await LLMService.get_active_connection()
-
-    if active_conn:
-        api_key = active_conn.api_key
-        model = active_conn.model_name
-        base_url = active_conn.base_url
-        db_prompt = await LLMService.get_active_prompt(active_conn.id)
-        system_prompt = db_prompt.content if db_prompt else await SettingsService.get_system_prompt()
-    else:
-        api_key = settings.OPENROUTER_API_KEY
-        model = settings.OPENROUTER_MODEL
-        base_url = None
-        system_prompt = await SettingsService.get_system_prompt()
-
-    last_messages = await HistoryService.get_last_messages(chat_id, limit=settings.HISTORY_SIZE)
-    messages = [{"role": "system", "content": system_prompt}] + last_messages
+    chat_type = message.chat.type
+    chat_title = message.chat.full_name if chat_type == ChatType.PRIVATE else message.chat.title
+    nickname = message.from_user.username if message.from_user and message.from_user.username else None
+    
+    await HistoryService.add_message(
+        chat_id, "user", user_text, 
+        platform="telegram", chat_type=chat_type, 
+        title=chat_title,
+        nickname=nickname
+    )
+    
+    config_settings = Settings()
+    last_messages = await HistoryService.get_last_messages(chat_id, limit=config_settings.HISTORY_SIZE)
 
     await message.bot.send_chat_action(chat_id=chat_id, action=ChatAction.TYPING)
 
     try:
-        reply = await LLMClient.get_completion(
-            messages,
-            api_key=api_key,
-            model=model,
-            base_url=base_url
-        )
+        reply = await LLMService.generate_response(messages=last_messages)
     except Exception as e:
         await message.answer(f"Ошибка при запросе к модели: {e}")
         return
 
-    await HistoryService.add_message(chat_id, "assistant", reply)
+    await HistoryService.add_message(
+        chat_id, "assistant", reply, 
+        platform="telegram", chat_type=chat_type, 
+        title=chat_title,
+        nickname=None
+    )
     await message.answer(reply)
