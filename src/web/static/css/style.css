@@ -60,7 +60,7 @@ header h1 {
     font-size: 1.75rem;
     font-weight: 700;
     margin: 0;
-    background: linear-gradient(135deg, #fff 0%, #a0a0a0 100%);
+    background: linear-gradient(135deg, var(--text-primary) 0%, var(--text-secondary) 100%);
     -webkit-background-clip: text;
     background-clip: text;
     -webkit-text-fill-color: transparent;
@@ -132,7 +132,6 @@ h3 {
 }
 
 .btn-primary:hover {
-    transform: translateY(-2px);
     filter: brightness(1.1);
 }
 
