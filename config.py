@@ -9,11 +9,11 @@ class Settings(BaseSettings):
     )
 
     # Telegram
-    BOT_TOKEN: str
+    BOT_TOKEN: str = "BOT_TOKEN"
     TELEGRAM_PROXY_URL: str | None = None
 
     # OpenRouter
-    OPENROUTER_API_KEY: str
+    OPENROUTER_API_KEY: str = "OPENROUTER_API_KEY"
     OPENROUTER_MODEL: str = "google/gemma-2.0-flash-001:free"
 
     # System prompt
@@ -49,3 +49,17 @@ class Settings(BaseSettings):
 
     # Telegram IDs, которым разрешено /set_prompt (через запятую)
     TELEGRAM_ADMIN_IDS: str = ""
+
+    # Стандартные базовые URL для популярных провайдеров (OpenAPI совместимые)
+    PROVIDER_DEFAULT_URLS: dict = {
+        "openrouter": "https://openrouter.ai/api/v1",
+        "openai": "https://api.openai.com/v1",
+        "groq": "https://api.groq.com/openai/v1",
+        "together": "https://api.together.xyz/v1",
+        "mistral": "https://api.mistral.ai/v1",
+        "deepseek": "https://api.deepseek.com/v1",
+        "xai": "https://api.x.ai/v1",
+        "ollama": "http://localhost:11434"
+    }
+
+settings = Settings()
