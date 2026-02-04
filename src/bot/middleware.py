@@ -3,7 +3,7 @@ from typing import Any, Awaitable, Callable, Dict
 
 from aiogram import BaseMiddleware
 from aiogram.enums import ChatType
-from aiogram.types import Message, Update
+from aiogram.types import Message
 
 from src.database.models import AllowedChat, Setting
 
@@ -35,7 +35,7 @@ class LoggingMiddleware(BaseMiddleware):
 
 
 class WhitelistMiddleware(BaseMiddleware):
-    """Middleware для проверки разрешенных групп."""
+    """Middleware для проверки разрешенных групп и активности бота."""
 
     async def __call__(
         self,
@@ -44,28 +44,31 @@ class WhitelistMiddleware(BaseMiddleware):
         data: Dict[str, Any]
     ) -> Any:
         message = event
+
+        enabled_setting = await Setting.get_or_none(key="telegram_bot_enabled")
+        is_bot_enabled = str(enabled_setting.value).lower() == "true" if enabled_setting else True
         
-        # Разрешаем личные сообщения, если включена настройка
+        if not is_bot_enabled:
+            logger.debug("Telegram бот выключен в настройках, игнорируем сообщение.")
+            return
+
         if message.chat.type == ChatType.PRIVATE:
             setting = await Setting.get_or_none(key="allow_private_chat")
             is_allowed = str(setting.value).lower() == "true" if setting else True
             
             if not is_allowed:
+                 logger.debug("Личные сообщения запрещены в настройках.")
                  return
             return await handler(event, data)
 
-        # Для групп проверяем наличие в базе
         if message.chat.type in (ChatType.GROUP, ChatType.SUPERGROUP):
             chat_id = message.chat.id
-            logger.info(f"Проверка группы: {message.chat.title} (ID: {chat_id})")
-            
-            allowed = await AllowedChat.filter(chat_id=chat_id, is_active=True).exists()
+            allowed = await AllowedChat.filter(chat_id=chat_id, platform="telegram", is_active=True).exists()
             
             if not allowed:
-                logger.warning("Попытка использования бота в неразрешенной группе: %s (%s)", message.chat.title, chat_id)
-                await message.answer("Этот чат не авторизован для использования бота.")
+                logger.warning("Группа %s (%s) не в белом списке.", message.chat.title, chat_id)
                 return
             
-            logger.info(f"Группа {message.chat.title} ({chat_id}) разрешена")
+            logger.debug(f"Группа {message.chat.title} разрешена")
 
         return await handler(event, data)
