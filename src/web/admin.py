@@ -67,7 +67,22 @@ async def admin_page(
     user: str = Depends(verify_session)
 ):
     stats = await HistoryService.get_stats()
-    chats = await HistoryService.list_chats()
+    raw_chats = await HistoryService.list_chats()
+    
+    chats = []
+    for chat in raw_chats:
+        chat_id = int(chat["chat_id"])
+        platform = chat["platform"]
+        
+        allowed = await AllowedChat.get_or_none(chat_id=chat_id, platform=platform)
+        if allowed:
+            chat["is_allowed"] = allowed.is_active  # Use the actual is_active status
+            chat["title"] = allowed.title
+        else:
+            chat["is_allowed"] = False
+            chat["title"] = f"Chat {chat_id}"
+        chats.append(chat)
+    
     System_prompt = await SettingsService.get_system_prompt()
     connections = await LLMService.list_connections()
     
@@ -112,7 +127,21 @@ async def api_stats(_: Annotated[str, Depends(verify_api_session)]) -> dict:
 
 @router.get("/api/chats")
 async def api_chats(_: Annotated[str, Depends(verify_api_session)]) -> list:
-    return await HistoryService.list_chats()
+    chats = await HistoryService.list_chats()
+    
+    # Добавляем информацию о белом списке
+    for chat in chats:
+        chat_id = int(chat["chat_id"])
+        platform = chat["platform"]
+        allowed = await AllowedChat.get_or_none(chat_id=chat_id, platform=platform)
+        if allowed:
+            chat["is_allowed"] = allowed.is_active
+            chat["title"] = allowed.title
+        else:
+            chat["is_allowed"] = False
+            chat["title"] = f"Chat {chat_id}"
+            
+    return chats
 
 
 @router.post("/api/clear-all")
@@ -121,9 +150,9 @@ async def api_clear_all(_: Annotated[str, Depends(verify_api_session)]) -> dict:
     return {"ok": True}
 
 
-@router.post("/api/clear/{chat_id:int}")
-async def api_clear_chat(chat_id: int, _: Annotated[str, Depends(verify_api_session)]) -> dict:
-    await HistoryService.clear_history(chat_id)
+@router.post("/api/clear/{chat_id}/{platform}")
+async def api_clear_chat(chat_id: int, platform: str, _: Annotated[str, Depends(verify_api_session)]) -> dict:
+    await HistoryService.clear_history(chat_id, platform=platform)
     return {"ok": True}
 
 
@@ -274,14 +303,18 @@ async def api_delete_prompt(prompt_id: int, _: Annotated[str, Depends(verify_api
 # --- Whitelist & Settings API ---
 
 @router.get("/api/whitelist")
-async def api_get_whitelist(_: Annotated[str, Depends(verify_api_session)]) -> list:
-    chats = await AllowedChat.all().order_by("-created_at")
+async def api_get_whitelist(
+    platform: str = "telegram", 
+    _: Annotated[str, Depends(verify_api_session)] = None
+) -> list:
+    chats = await AllowedChat.filter(platform=platform).order_by("-created_at")
     return [
         {
             "id": c.id,
             "chat_id": str(c.chat_id),
             "title": c.title,
             "is_active": c.is_active,
+            "platform": c.platform,
             "created_at": c.created_at.isoformat()
         }
         for c in chats
@@ -292,14 +325,15 @@ async def api_get_whitelist(_: Annotated[str, Depends(verify_api_session)]) -> l
 async def api_add_whitelist(request: Request, _: Annotated[str, Depends(verify_api_session)]) -> dict:
     data = await request.json()
     chat_id = int(data["chat_id"])
+    platform = data.get("platform", "telegram")
     title = data.get("title", f"Group {chat_id}")
     
     # Check if exists
-    exists = await AllowedChat.filter(chat_id=chat_id).exists()
+    exists = await AllowedChat.filter(chat_id=chat_id, platform=platform).exists()
     if exists:
          raise HTTPException(status_code=400, detail="Chat ID already in whitelist")
 
-    chat = await AllowedChat.create(chat_id=chat_id, title=title, is_active=True)
+    chat = await AllowedChat.create(chat_id=chat_id, title=title, platform=platform, is_active=True)
     return {"id": chat.id}
 
 
@@ -322,20 +356,48 @@ async def api_toggle_whitelist(item_id: int, request: Request, _: Annotated[str,
     return {"ok": True}
 
 
-@router.get("/api/settings/private-chat")
-async def api_get_private_chat_setting(_: Annotated[str, Depends(verify_api_session)]) -> dict:
-    setting = await Setting.get_or_none(key="allow_private_chat")
-    value = str(setting.value).lower() == "true" if setting else True # Default True
-    return {"enabled": value}
-
-
-@router.post("/api/settings/private-chat")
-async def api_set_private_chat_setting(request: Request, _: Annotated[str, Depends(verify_api_session)]) -> dict:
-    data = await request.json()
-    enabled = bool(data.get("enabled", True))
+@router.get("/api/settings/global")
+async def api_get_global_settings(_: Annotated[str, Depends(verify_api_session)]) -> dict:
+    # Telegram
+    tg_priv = await Setting.get_or_none(key="allow_private_chat")
+    tg_mem = await Setting.get_or_none(key="telegram_memory_limit")
+    tg_enabled = await Setting.get_or_none(key="telegram_bot_enabled")
     
-    await Setting.update_or_create(
-        key="allow_private_chat",
-        defaults={"value": str(enabled)}
-    )
+    # Discord
+    dc_enabled = await Setting.get_or_none(key="discord_bot_enabled")
+    dc_mem = await Setting.get_or_none(key="discord_memory_limit")
+    dc_dm = await Setting.get_or_none(key="discord_allow_dms")
+
+    return {
+        "telegram": {
+            "enabled": str(tg_enabled.value).lower() == "true" if tg_enabled else True,
+            "allow_private": str(tg_priv.value).lower() == "true" if tg_priv else True,
+            "memory_limit": int(tg_mem.value) if tg_mem else 10
+        },
+        "discord": {
+            "enabled": str(dc_enabled.value).lower() == "true" if dc_enabled else False,
+            "allow_dms": str(dc_dm.value).lower() == "true" if dc_dm else False,
+            "memory_limit": int(dc_mem.value) if dc_mem else 10
+        }
+    }
+
+
+@router.post("/api/settings/global")
+async def api_set_global_settings(request: Request, _: Annotated[str, Depends(verify_api_session)]) -> dict:
+    data = await request.json()
+    
+    # Telegram
+    if "telegram" in data:
+        tg = data["telegram"]
+        await Setting.update_or_create(key="telegram_bot_enabled", defaults={"value": str(tg.get("enabled", True))})
+        await Setting.update_or_create(key="allow_private_chat", defaults={"value": str(tg.get("allow_private", True))})
+        await Setting.update_or_create(key="telegram_memory_limit", defaults={"value": str(tg.get("memory_limit", 10))})
+
+    # Discord
+    if "discord" in data:
+        dc = data["discord"]
+        await Setting.update_or_create(key="discord_bot_enabled", defaults={"value": str(dc.get("enabled", False))})
+        await Setting.update_or_create(key="discord_allow_dms", defaults={"value": str(dc.get("allow_dms", False))})
+        await Setting.update_or_create(key="discord_memory_limit", defaults={"value": str(dc.get("memory_limit", 10))})
+        
     return {"ok": True}
