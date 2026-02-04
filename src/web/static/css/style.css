@@ -191,12 +191,31 @@ h3 {
 }
 
 .form-actions {
-    flex: 1 1 100%;
+    display: flex;
+    gap: 1rem;
+    margin-top: 1.5rem;
+    width: 100%;
 }
 
-.form-actions .btn {
-    min-width: 160px;
+.form-actions .btn,
+.modal-actions .btn {
+    min-width: 120px;
     justify-content: center;
+}
+
+.modal-actions {
+    display: flex;
+    gap: 1rem;
+    margin-top: 1.5rem;
+    width: 100%;
+}
+
+.justify-end {
+    justify-content: flex-end;
+}
+
+textarea {
+    resize: none;
 }
 
 input,
