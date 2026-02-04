@@ -425,16 +425,20 @@ async function clearAll() {
     } catch (e) { }
 }
 
-async function clearChat(id) {
+async function clearChat(id, platform) {
     const confirmed = await confirmAction("Удалить этот чат?");
     if (!confirmed) return;
     try {
-        await api("/clear/" + id, "POST");
+        await api("/clear/" + id + "/" + platform, "POST");
         window.location.reload();
     } catch (e) { }
 }
 
 // --- Settings & Whitelist Logic ---
+
+// --- Settings & Whitelist Logic ---
+
+let currentSettingsTab = 'telegram';
 
 function openSettingsModal() {
     const modal = document.getElementById("settings_modal");
@@ -444,8 +448,9 @@ function openSettingsModal() {
 
     if (window.lucide) lucide.createIcons();
 
-    loadSettings();
-    loadWhitelist();
+    // Switch to last used tab or default
+    switchSettingsTab(currentSettingsTab);
+    loadGlobalSettings();
 }
 
 function closeSettingsModal(event) {
@@ -458,86 +463,128 @@ function closeSettingsModal(event) {
     }, 300);
 }
 
-async function loadSettings() {
+function switchSettingsTab(tab) {
+    currentSettingsTab = tab;
+
+    // Update tabs UI
+    $$('.tab-item').forEach(el => el.classList.remove('active'));
+    $$('.tab-pane').forEach(el => el.classList.remove('active'));
+
+    $(`.tab-item[onclick="switchSettingsTab('${tab}')"]`).classList.add('active');
+    $(`#tab_${tab}`).classList.add('active');
+
+    // Load data for this tab
+    loadWhitelist(tab);
+}
+
+async function loadGlobalSettings() {
     try {
-        const res = await api("/settings/private-chat");
-        document.getElementById("setting_private_chat").checked = res.enabled;
+        const res = await api("/settings/global");
+
+        // Telegram
+        $('#setting_tg_enabled').checked = res.telegram.enabled;
+        $('#setting_tg_private').checked = res.telegram.allow_private;
+        $('#setting_tg_memory').value = res.telegram.memory_limit;
+
+        // Discord
+        $('#setting_dc_enabled').checked = res.discord.enabled;
+        $('#setting_dc_dm').checked = res.discord.allow_dms;
+        $('#setting_dc_memory').value = res.discord.memory_limit;
+
     } catch (e) { }
 }
 
-async function togglePrivateChat() {
-    const enabled = document.getElementById("setting_private_chat").checked;
+async function saveSettings() {
+    const data = {
+        telegram: {
+            enabled: $('#setting_tg_enabled').checked,
+            allow_private: $('#setting_tg_private').checked,
+            memory_limit: parseInt($('#setting_tg_memory').value) || 10
+        },
+        discord: {
+            enabled: $('#setting_dc_enabled').checked,
+            allow_dms: $('#setting_dc_dm').checked,
+            memory_limit: parseInt($('#setting_dc_memory').value) || 10
+        }
+    };
+
     try {
-        await api("/settings/private-chat", "POST", { enabled });
-        showToast("Настройка обновлена");
-    } catch (e) {
-        document.getElementById("setting_private_chat").checked = !enabled; // Revert
-    }
+        await api("/settings/global", "POST", data);
+        showToast("Настройки сохранены");
+        closeSettingsModal();
+    } catch (e) { }
 }
 
-async function loadWhitelist() {
+
+async function loadWhitelist(platform) {
     try {
-        const list = await api("/whitelist");
+        const list = await api(`/whitelist?platform=${platform}`);
         const html = list.map(item => `
-            <div class="flex justify-between" style="padding: 0.75rem; background: var(--bg-primary); border-radius: 6px; margin-bottom: 0.5rem; align-items: center;">
+            <div class="whitelist-item">
                 <div style="flex-grow: 1;">
                     <div style="font-weight: 500;">${item.title || 'Без названия'}</div>
                     <div style="font-size: 0.85rem; color: var(--text-secondary); font-family: monospace;">${item.chat_id}</div>
                 </div>
                 <div class="flex" style="gap: 0.5rem; align-items: center;">
                     <label class="switch" title="${item.is_active ? 'Активна' : 'Неактивна'}">
-                        <input type="checkbox" ${item.is_active ? 'checked' : ''} onchange="toggleWhitelistItem(${item.id}, this.checked)">
+                        <input type="checkbox" ${item.is_active ? 'checked' : ''} onchange="toggleWhitelistItem(${item.id}, this.checked, '${platform}')">
                         <span class="slider"></span>
                     </label>
-                    <button class="btn btn-icon" onclick="deleteWhitelistItem(${item.id})" style="color: var(--danger)">
+                    <button class="btn btn-icon" onclick="deleteWhitelistItem(${item.id}, '${platform}')" style="color: var(--danger)">
                         <i data-lucide="trash-2" style="width: 16px; height: 16px;"></i>
                     </button>
                 </div>
             </div>
         `).join("");
 
-        document.getElementById("whitelist_list").innerHTML = html || "<p style='color:var(--text-secondary); text-align:center'>Список пуст</p>";
-        if (window.lucide) lucide.createIcons();
-    } catch (e) { }
+        const containerId = `whitelist_list_${platform}`;
+        const container = document.getElementById(containerId);
+        if (container) {
+            container.innerHTML = html || "<p style='color:var(--text-secondary); text-align:center; padding: 1rem;'>Список пуст</p>";
+            if (window.lucide) lucide.createIcons();
+        }
+    } catch (e) { console.error(e); }
 }
 
-async function addWhitelistItem() {
-    const chat_id = document.getElementById("whitelist_chat_id").value.trim();
-    const title = document.getElementById("whitelist_title").value.trim();
+async function addWhitelistItem(platform) {
+    const prefix = platform === 'telegram' ? 'whitelist_tg' : 'whitelist_dc';
+    const chat_id = document.getElementById(`${prefix}_id`).value.trim();
+    const title = document.getElementById(`${prefix}_title`).value.trim();
 
     if (!chat_id) {
-        showToast("Введите Chat ID", true);
+        showToast("Введите ID", true);
         return;
     }
 
     try {
         await api("/whitelist", "POST", {
             chat_id,
-            title: title || `Group ${chat_id}`
+            platform,
+            title: title || (platform === 'telegram' ? `Group ${chat_id}` : `Server ${chat_id}`)
         });
-        document.getElementById("whitelist_chat_id").value = "";
-        document.getElementById("whitelist_title").value = "";
-        await loadWhitelist();
+        document.getElementById(`${prefix}_id`).value = "";
+        document.getElementById(`${prefix}_title`).value = "";
+        await loadWhitelist(platform);
         showToast("Добавлено в белый список");
     } catch (e) { }
 }
 
-async function deleteWhitelistItem(id) {
+async function deleteWhitelistItem(id, platform) {
     if (!await confirmAction("Удалить из белого списка?")) return;
 
     try {
         await api("/whitelist/" + id, "DELETE");
-        await loadWhitelist();
+        await loadWhitelist(platform);
     } catch (e) { }
 }
 
-async function toggleWhitelistItem(id, isActive) {
+async function toggleWhitelistItem(id, isActive, platform) {
     try {
         await api("/whitelist/" + id + "/toggle", "POST", { is_active: isActive });
-        showToast(isActive ? "Группа активирована" : "Группа деактивирована");
+        showToast(isActive ? "Включено" : "Отключено");
     } catch (e) {
         // Revert on error
-        await loadWhitelist();
+        await loadWhitelist(platform);
     }
 }
 
