@@ -249,6 +249,16 @@ tr td:last-child {
     border-radius: 0 12px 12px 0;
 }
 
+tr td:only-child {
+    border-radius: 12px;
+}
+
+select option {
+    background-color: var(--bg-secondary);
+    color: var(--text-primary);
+    padding: 10px;
+}
+
 tr:hover td {
     background-color: rgba(255, 255, 255, 0.04);
 }
@@ -486,4 +496,98 @@ input:focus+.slider {
 
 input:checked+.slider:hover {
     filter: brightness(1.1);
+}
+
+/* UI Scaling - Default */
+body {
+    zoom: 1;
+}
+
+/* Custom Dropdown Styles */
+.custom-dropdown {
+    position: relative;
+    width: 100%;
+    font-family: inherit;
+}
+
+.dropdown-trigger {
+    background-color: var(--bg-primary);
+    border: 1.5px solid var(--border-color);
+    border-radius: 12px;
+    padding: 0.8rem 1.2rem;
+    color: var(--text-primary);
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: all 0.2s;
+}
+
+.custom-dropdown.active .dropdown-trigger,
+.dropdown-trigger:hover {
+    border-color: var(--accent-primary);
+}
+
+.dropdown-arrow {
+    transition: transform 0.3s;
+}
+
+.custom-dropdown.active .dropdown-arrow {
+    transform: rotate(180deg);
+}
+
+.dropdown-menu {
+    position: absolute;
+    top: calc(100% + 8px);
+    left: 0;
+    width: 100%;
+    background-color: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    z-index: 100;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-10px);
+    transition: all 0.2s cubic-bezier(0.165, 0.84, 0.44, 1);
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.custom-dropdown.active .dropdown-menu {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+}
+
+.dropdown-option {
+    padding: 0.8rem 1.2rem;
+    cursor: pointer;
+    transition: background 0.2s;
+    color: var(--text-secondary);
+}
+
+.dropdown-option:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+    color: var(--text-primary);
+}
+
+.dropdown-option.selected {
+    background-color: rgba(107, 70, 193, 0.1);
+    color: var(--accent-primary);
+    font-weight: 500;
+}
+
+/* Scrollbar for dropdown */
+.dropdown-menu::-webkit-scrollbar {
+    width: 6px;
+}
+
+.dropdown-menu::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.dropdown-menu::-webkit-scrollbar-thumb {
+    background-color: var(--border-color);
+    border-radius: 20px;
 }
