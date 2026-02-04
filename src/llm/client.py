@@ -27,7 +27,10 @@ class LLMClient:
         Returns:
             Текст ответа ассистента.
         """
-        filtered_messages = [m for m in messages if m.get("content")]
+        filtered_messages = [
+            {"role": m["role"], "content": m["content"]} 
+            for m in messages if m.get("content")
+        ]
         if not filtered_messages:
             raise ValueError("No messages to send")
 
