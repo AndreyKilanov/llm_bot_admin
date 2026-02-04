@@ -6,9 +6,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}LLM Bot Admin{% endblock %}</title>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="stylesheet" href="/static/css/style.css?v={{ now_timestamp }}">
     <script src="https://unpkg.com/lucide@latest"></script>
-    <script src="/static/js/main.js" defer></script>
+    <script src="/static/js/main.js?v={{ now_timestamp }}" defer></script>
 </head>
 
 <body>
@@ -23,7 +23,7 @@
                 <i data-lucide="bot" style="color: var(--accent-primary); width: 24px; height: 24px;"></i>
                 <h1>LLM Bot Admin</h1>
             </div>
-            <div class="flex">
+            <div class="flex" style="gap: 0.25rem;">
                 {% if user %}
                 <span
                     style="margin-right: 1rem; color: var(--text-secondary); display: flex; align-items: center; gap: 0.5rem;">
@@ -36,12 +36,12 @@
                     Выйти
                 </a>
                 {% endif %}
-            <button class="btn-icon" onclick="openSettingsModal()" title="Настройки" style="margin-right: 0.5rem">
-                <i data-lucide="settings"></i>
-            </button>
-            <button id="theme-toggle" class="btn-icon" onclick="toggleTheme()" title="Переключить тему">
-                <i data-lucide="sun"></i>
-            </button>
+                <button class="btn-icon" onclick="openSettingsModal()" title="Настройки">
+                    <i data-lucide="settings"></i>
+                </button>
+                <button id="theme-toggle" class="btn-icon" onclick="toggleTheme()" title="Переключить тему">
+                    <i data-lucide="sun"></i>
+                </button>
             </div>
         </header>
 
