@@ -113,16 +113,22 @@
         <div class="modal-body">
             <div class="form-group">
                 <input type="text" id="conn_name" placeholder="Название (например, OpenAI)">
-                <select id="conn_provider" onchange="onProviderChange()">
-                    <option value="" disabled selected>Выберите провайдера...</option>
-                    <option value="openrouter">OpenRouter</option>
-                    <option value="openai">OpenAI</option>
-                    <option value="anthropic">Anthropic</option>
-                    <option value="google">Google (Gemini)</option>
-                    <option value="deepseek">DeepSeek</option>
-                    <option value="groq">Groq</option>
-                    <option value="custom">Другой (Custom)</option>
-                </select>
+                <input type="hidden" id="conn_provider">
+                <div class="custom-dropdown" data-input-id="conn_provider">
+                    <div class="dropdown-trigger">
+                        <span class="selected-text">Выберите провайдера...</span>
+                        <i data-lucide="chevron-down" class="dropdown-arrow"
+                            style="width: 16px; height: 16px; color: var(--text-secondary);"></i>
+                    </div>
+                    <div class="dropdown-menu">
+                        {% for key, url in providers.items() %}
+                        <div class="dropdown-option" data-value="{{ key }}">
+                            {{ provider_names.get(key, key|title) }}
+                        </div>
+                        {% endfor %}
+                        <div class="dropdown-option" data-value="custom">Другой (Custom)</div>
+                    </div>
+                </div>
                 <input type="text" id="conn_model" placeholder="Модель (gpt-4o, anthropic/claude-3)">
                 <input type="password" id="conn_key" placeholder="API Key">
                 <input type="text" id="conn_url" placeholder="Base URL (optional)">
