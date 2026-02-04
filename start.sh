@@ -25,5 +25,5 @@ fi
 echo "Creating superuser..."
 python scripts/create_superuser.py
 
-echo "Starting app (webhook)..."
+echo "Starting app ..."
 exec python -m src.main
