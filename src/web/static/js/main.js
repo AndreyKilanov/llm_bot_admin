@@ -326,7 +326,7 @@ async function loadPrompts() {
                             <i data-lucide="edit-2" style="width: 16px; height: 16px;"></i>
                         </button>
                         <button class="btn btn-icon delete-prompt" onclick="deletePrompt(${p.id})" title="Удалить" style="color: var(--danger)">
-                            <i data-lucide="x" style="width: 18px; height: 18px;"></i>
+                            <i data-lucide="trash-2" style="width: 18px; height: 18px;"></i>
                         </button>
                     </div>
                 </div>
