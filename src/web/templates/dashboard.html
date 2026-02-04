@@ -169,19 +169,19 @@
         <div class="modal-body">
             <div id="prompts_list"></div>
 
-            <div class="card" style="margin-top: 1.5rem; background: rgba(255,255,255,0.02)">
+            <div id="prompt_form" class="card" style="margin-top: 1.5rem; background: rgba(255,255,255,0.02)">
                 <h3 id="prompt_form_title" style="margin-bottom:1.25rem">Добавить промпт</h3>
                 <div class="form-group">
                     <input type="text" id="prompt_name" placeholder="Название промпта">
                     <textarea id="prompt_content" placeholder="Текст системного промпта" rows="5"></textarea>
-                    <div class="flex" style="margin-top: 1rem;">
-                        <button id="prompt_submit_btn" onclick="submitPrompt()" class="btn btn-primary flex">
-                            <i data-lucide="plus-square" style="width: 16px; height: 16px;"></i>
-                            Добавить промпт
-                        </button>
-                        <button id="prompt_cancel_btn" onclick="cancelEditPrompt()" class="btn flex"
+                    <div class="flex justify-end" style="margin-top: 1.5rem; gap: 1rem;">
+                        <button id="prompt_cancel_btn" onclick="cancelEditPrompt()" class="btn"
                             style="display:none; background:transparent; border:1px solid var(--border-color);">
                             Отмена
+                        </button>
+                        <button id="prompt_submit_btn" onclick="submitPrompt()" class="btn btn-primary">
+                            <i data-lucide="plus-square" style="width: 16px; height: 16px;"></i>
+                            Добавить промпт
                         </button>
                     </div>
                 </div>
@@ -244,11 +244,10 @@
             <p id="confirm_message"
                 style="margin:0; color: var(--text-secondary); font-size: 1.05rem; line-height: 1.6;"></p>
         </div>
-        <div class="flex" style="gap: 1rem; justify-content: center; width: 100%;">
-            <button id="confirm_ok_btn" class="btn btn-primary"
-                style="min-width: 120px; justify-content: center; height: 48px;">ОК</button>
+        <div class="modal-actions" style="justify-content: center;">
+            <button id="confirm_ok_btn" class="btn btn-primary" style="height: 48px;">ОК</button>
             <button id="confirm_cancel_btn" class="btn"
-                style="min-width: 120px; justify-content: center; height: 48px; background: rgba(255,255,255,0.03); border: 1px solid var(--border-color); color: var(--text-secondary);">Отмена</button>
+                style="height: 48px; background: rgba(255,255,255,0.03); border: 1px solid var(--border-color); color: var(--text-secondary);">Отмена</button>
         </div>
     </div>
 </div>
