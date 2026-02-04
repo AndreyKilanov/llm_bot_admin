@@ -12,6 +12,10 @@ class Settings(BaseSettings):
     BOT_TOKEN: str = "BOT_TOKEN"
     TELEGRAM_PROXY_URL: str | None = None
 
+    # Discord
+    DISCORD_BOT_TOKEN: str | None = None
+
+
     # OpenRouter
     OPENROUTER_API_KEY: str = "OPENROUTER_API_KEY"
     OPENROUTER_MODEL: str = "google/gemma-2.0-flash-001:free"
@@ -20,7 +24,8 @@ class Settings(BaseSettings):
     SYSTEM_PROMPT: str = "You are a helpful assistant. Answer concisely and clearly."
 
     # History
-    HISTORY_SIZE: int = 10
+    HISTORY_SIZE: int = 10  # Fallback logic if needed, but we will move to dynamic settings
+
 
     # Webhook
     WEBHOOK_PATH: str = "/webhook"
