@@ -1,3 +1,4 @@
+import time
 from pathlib import Path
 from typing import Annotated
 
@@ -77,7 +78,9 @@ async def admin_page(
             "stats": stats,
             "chats": chats,
             "prompt": System_prompt,
-            "connections": connections
+            "prompt": System_prompt,
+            "connections": connections,
+            "now_timestamp": int(time.time())
         }
     )
 
