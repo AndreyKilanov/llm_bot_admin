@@ -1,7 +1,7 @@
-from src.database.models import LLMConnection, LLMPrompt
-from src.logger import log_function
-from src.llm import LLMClient
 from config import settings
+from src.database.models import LLMConnection, LLMPrompt
+from src.llm import LLMClient
+from src.logger import log_function
 
 
 class LLMService:
@@ -316,3 +316,59 @@ class LLMService:
             Список экземпляров LLMPrompt.
         """
         return await LLMPrompt.filter(connection_id=connection_id).all().order_by("id")
+
+    @staticmethod
+    @log_function
+    async def get_system_prompt_content() -> str:
+        """Возвращает актуальный системный промпт.
+
+        Сначала проверяет наличие активного промпта у активного подключения.
+        Если нет активного подключения или промпта — возвращает глобальный промпт из настроек.
+
+        Returns:
+            Текст системного промпта.
+        """
+        from src.services.settings_service import SettingsService
+
+        active_conn = await LLMService.get_active_connection()
+        if active_conn:
+            db_prompt = await LLMService.get_active_prompt(active_conn.id)
+            if db_prompt:
+                return db_prompt.content
+
+        return await SettingsService.get_system_prompt()
+
+    @staticmethod
+    @log_function
+    async def generate_response(messages: list[dict], system_prompt: str | None = None) -> str:
+        """Генерирует ответ от LLM, используя активное подключение или настройки по умолчанию.
+
+        Args:
+            messages: Список предыдущих сообщений диалога (без системного промпта).
+            system_prompt: Опциональный системный промпт. Если не передан — будет получен автоматически.
+
+        Returns:
+            Текст ответа от модели.
+        """
+        if system_prompt is None:
+            system_prompt = await LLMService.get_system_prompt_content()
+
+        active_conn = await LLMService.get_active_connection()
+
+        if active_conn:
+            api_key = active_conn.api_key
+            model = active_conn.model_name
+            base_url = active_conn.base_url
+        else:
+            api_key = settings.OPENROUTER_API_KEY
+            model = settings.OPENROUTER_MODEL
+            base_url = None
+
+        full_messages = [{"role": "system", "content": system_prompt}] + messages
+
+        return await LLMClient.get_completion(
+            messages=full_messages,
+            api_key=api_key,
+            model=model,
+            base_url=base_url
+        )
