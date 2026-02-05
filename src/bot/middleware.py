@@ -50,25 +50,31 @@ class WhitelistMiddleware(BaseMiddleware):
         
         if not is_bot_enabled:
             logger.debug("Telegram бот выключен в настройках, игнорируем сообщение.")
-            return
+            return None
+
+        chat_id = message.chat.id
+        allowed_chat = await AllowedChat.get_or_none(chat_id=chat_id, platform="telegram")
+
+        if allowed_chat:
+            if not allowed_chat.is_active:
+                logger.debug(f"Чат {chat_id} явно отключен в белом списке.")
+                return None
+
+            return await handler(event, data)
+
+        new_chats_setting = await Setting.get_or_none(key="telegram_allow_new_chats")
+        allow_new_chats = str(new_chats_setting.value).lower() == "true" if new_chats_setting else True
+
+        if not allow_new_chats:
+            logger.warning(f"Чат {chat_id} не в белом списке и добавление новых чатов запрещено.")
+            return None
 
         if message.chat.type == ChatType.PRIVATE:
             setting = await Setting.get_or_none(key="allow_private_chat")
-            is_allowed = str(setting.value).lower() == "true" if setting else True
+            is_private_allowed = str(setting.value).lower() == "true" if setting else True
             
-            if not is_allowed:
+            if not is_private_allowed:
                  logger.debug("Личные сообщения запрещены в настройках.")
-                 return
-            return await handler(event, data)
-
-        if message.chat.type in (ChatType.GROUP, ChatType.SUPERGROUP):
-            chat_id = message.chat.id
-            allowed = await AllowedChat.filter(chat_id=chat_id, platform="telegram", is_active=True).exists()
-            
-            if not allowed:
-                logger.warning("Группа %s (%s) не в белом списке.", message.chat.title, chat_id)
-                return
-            
-            logger.debug(f"Группа {message.chat.title} разрешена")
+                 return None
 
         return await handler(event, data)
