@@ -38,7 +38,7 @@ class HistoryService:
                     chat_id=chat_id,
                     platform=platform,
                     title=title,
-                    is_active=False
+                    is_active=True
                 )
         
         return await ChatMessage.create(
