@@ -65,34 +65,49 @@ class DiscordBot:
                 f"<@{self.client.user.id}>" in message.content
         )
         guild_id = message.guild.id if message.guild else None
+
+        allowed_channel = await AllowedChat.get_or_none(chat_id=chat_id, platform="discord")
+        allowed_guild = await AllowedChat.get_or_none(chat_id=guild_id, platform="discord") if guild_id else None
         
-        if is_dm:
-            dm_setting = await Setting.get_or_none(key="discord_allow_dms")
-            if not dm_setting or str(dm_setting.value).lower() != "true":
-                return
-        else:
-            allowed_channel = await AllowedChat.get_or_none(chat_id=chat_id, platform="discord")
-            allowed_guild = await AllowedChat.get_or_none(chat_id=guild_id, platform="discord") if guild_id else None
-            is_channel_active = allowed_channel.is_active if allowed_channel else False
-            is_guild_active = allowed_guild.is_active if allowed_guild else False
-            allowed = is_channel_active or is_guild_active
+        # 1. Если канал или сервер явно отключены в белом списке — игнорируем
+        if allowed_channel and not allowed_channel.is_active:
+            logger.debug(f"Discord канал {chat_id} явно отключен в белом списке.")
+            return
+        if allowed_guild and not allowed_guild.is_active:
+            logger.debug(f"Discord сервер {guild_id} явно отключен в белом списке.")
+            return
 
-            if not allowed and not is_mentioned:
-                return
+        is_channel_active = allowed_channel.is_active if allowed_channel else False
+        is_guild_active = allowed_guild.is_active if allowed_guild else False
+        is_in_whitelist = is_channel_active or is_guild_active
 
-            if not is_mentioned:
-                return
+        # 2. Если чат не в белом списке, проверяем глобальные настройки
+        if not is_in_whitelist:
+            new_chats_setting = await Setting.get_or_none(key="discord_allow_new_chats")
+            allow_new_chats = str(new_chats_setting.value).lower() == "true" if new_chats_setting else False
 
-            if is_guild_active and not is_channel_active:
-                await AllowedChat.update_or_create(
-                    chat_id=chat_id, 
-                    platform="discord", 
-                    defaults={
-                        "is_active": True, 
-                        "title": f"{message.guild.name} / {message.channel.name}"
-                    }
-                )
-                logger.info(f"Auto-activated channel {chat_id} because guild {guild_id} is whitelisted")
+            if not allow_new_chats:
+                return
+            
+            if is_dm:
+                dm_setting = await Setting.get_or_none(key="discord_allow_dms")
+                if not dm_setting or str(dm_setting.value).lower() != "true":
+                    return
+            else:
+                # В серверах для новых чатов отвечаем только при упоминании
+                if not is_mentioned:
+                    return
+
+        if not is_dm and is_guild_active and not is_channel_active:
+            await AllowedChat.update_or_create(
+                chat_id=chat_id, 
+                platform="discord", 
+                defaults={
+                    "is_active": True, 
+                    "title": f"{message.guild.name} / {message.channel.name}"
+                }
+            )
+            logger.info(f"Auto-activated channel {chat_id} because guild {guild_id} is whitelisted")
 
         user_text = message.clean_content
 
