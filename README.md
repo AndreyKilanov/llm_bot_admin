@@ -84,6 +84,10 @@ docker compose up -d --build
 <details>
   <summary>Посмотреть скриншоты</summary>
 
+### Вход в систему
+
+  <img src="screenshots/login.jpg" width="750" alt="Login">
+
 ### Дашборд и Статистика
 
   <img src="screenshots/admin-panel.jpg" width="750" alt="Dashboard">
@@ -92,9 +96,14 @@ docker compose up -d --build
 
   <img src="screenshots/settings.jpg" width="750" alt="Settings">
 
-### Вход в систему
+### Чаты
 
-  <img src="screenshots/login.jpg" width="750" alt="Login">
+  <img src="screenshots/chats.jpg" width="750" alt="Chats">
+
+
+### Статистика 
+
+  <img src="screenshots/statistic.jpg" width="750" alt="statistic">
 
 </details>
 
