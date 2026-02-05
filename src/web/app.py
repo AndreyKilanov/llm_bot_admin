@@ -46,6 +46,16 @@ def create_app(bot: Bot, dp, use_webhook: bool = False) -> FastAPI:
             logger.info("Запуск в режиме POLLING (в фоне)")
             asyncio.create_task(dp.start_polling(bot))
 
+        # Discord Bot Startup
+        try:
+            from src.bot.discord_bot import discord_bot
+            logger.info("Инициализация Discord бота...")
+            # We start it as a background task. 
+            # Note: discord.py client.start() is blocking, so we need create_task.
+            asyncio.create_task(discord_bot.start())
+        except Exception as e:
+             logger.error(f"Не удалось запустить Discord бота: {e}")
+
     @app.get("/")
     @app.get("/health")
     async def health() -> dict:

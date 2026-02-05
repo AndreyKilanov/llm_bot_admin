@@ -171,7 +171,7 @@ h3 {
 .btn-table {
     padding: 0.5rem 0.8rem;
     font-size: 0.8rem;
-    min-width: 115px;
+    min-width: 100px;
     justify-content: center;
     border-radius: 10px;
 }
@@ -238,11 +238,21 @@ textarea:focus {
     box-shadow: 0 0 0 4px rgba(107, 70, 193, 0.1);
 }
 
+/* Autofill fix */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active {
+    -webkit-box-shadow: 0 0 0 1000px var(--bg-primary) inset !important;
+    -webkit-text-fill-color: var(--text-primary) !important;
+    transition: background-color 5000s ease-in-out 0s;
+}
+
+
 table {
     width: 100%;
     border-collapse: separate;
     border-spacing: 0 0.75rem;
-    table-layout: fixed;
     margin-top: -0.75rem;
 }
 
@@ -272,12 +282,6 @@ tr td:only-child {
     border-radius: 12px;
 }
 
-select option {
-    background-color: var(--bg-secondary);
-    color: var(--text-primary);
-    padding: 10px;
-}
-
 tr:hover td {
     background-color: rgba(255, 255, 255, 0.04);
 }
@@ -290,36 +294,65 @@ tr.active td:first-child {
     border-left: 4px solid var(--accent-primary);
 }
 
-table th:nth-child(1),
-table td:nth-child(1) {
-    width: 15%;
+/* Стандартная таблица (например, Подключения) */
+.table-fixed {
+    table-layout: fixed;
 }
 
-table th:nth-child(2),
-table td:nth-child(2) {
+.table-fixed td:not(:last-child) {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.table-fixed td:last-child {
+    overflow: visible;
+}
+
+.table-fixed th:nth-child(1),
+.table-fixed td:nth-child(1) {
     width: 12%;
 }
 
-table th:nth-child(3),
-table td:nth-child(3) {
-    width: 25%;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+.table-fixed th:nth-child(2),
+.table-fixed td:nth-child(2) {
+    width: 10%;
 }
 
-table th:nth-child(4),
-table td:nth-child(4) {
-    width: 18%;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+.table-fixed th:nth-child(3),
+.table-fixed td:nth-child(3) {
+    width: 20%;
 }
 
-table th:nth-child(5),
-table td:nth-child(5) {
-    width: 30%;
+.table-fixed th:nth-child(4),
+.table-fixed td:nth-child(4) {
+    width: 20%;
+}
+
+.table-fixed th:nth-child(5),
+.table-fixed td:nth-child(5) {
+    width: 38%;
     text-align: right;
+}
+
+/* Таблица чатов */
+.chats-table {
+    table-layout: auto;
+}
+
+.chats-table th,
+.chats-table td {
+    width: auto;
+    overflow: visible;
+}
+
+.stat-card {
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.stat-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 20px -10px rgba(0, 0, 0, 0.2);
 }
 
 .flex {
@@ -395,7 +428,16 @@ table td:nth-child(5) {
 .modal-body {
     padding: 2.5rem;
     overflow-y: auto;
+    flex: 1;
 }
+
+.modal-footer {
+    padding: 1.5rem 2.5rem;
+    border-top: 1px solid var(--border-color);
+    display: flex;
+    justify-content: flex-end;
+}
+
 
 ::-webkit-scrollbar {
     width: 8px;
@@ -609,4 +651,111 @@ body {
 .dropdown-menu::-webkit-scrollbar-thumb {
     background-color: var(--border-color);
     border-radius: 20px;
+}
+
+/* Settings Tabs */
+.settings-tabs {
+    display: flex;
+    justify-content: center;
+    border-bottom: 1px solid var(--border-color);
+    background: rgba(0, 0, 0, 0.1);
+    padding: 0 1rem;
+}
+
+.tab-item {
+    padding: 1rem 1.5rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    color: var(--text-secondary);
+    transition: all 0.2s;
+    border-bottom: 2px solid transparent;
+    font-weight: 500;
+}
+
+.tab-item:hover {
+    color: var(--accent-secondary);
+    background: transparent;
+}
+
+.tab-item.active {
+    color: var(--accent-secondary);
+    border-bottom: 2px solid var(--accent-secondary);
+    background: transparent;
+}
+
+.tab-pane {
+    display: none;
+    animation: fadeInTab 0.3s ease;
+}
+
+/* Hide spin buttons for number inputs */
+input::-webkit-outer-spin-button,
+input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    appearance: none;
+    margin: 0;
+}
+
+input[type=number] {
+    -moz-appearance: textfield;
+    appearance: textfield;
+}
+
+.tab-pane.active {
+    display: block;
+}
+
+@keyframes fadeInTab {
+    from {
+        opacity: 0;
+        transform: translateY(5px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.input-tiny {
+    width: 52px;
+    height: 28px;
+    padding: 0;
+    border-radius: 14px;
+    background: var(--bg-primary);
+    border: 1.5px solid var(--border-color);
+    color: var(--text-primary);
+    text-align: center;
+    font-weight: 600;
+    font-size: 0.85rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.whitelist-container {
+    max-height: 250px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    padding-right: 0.5rem;
+}
+
+.whitelist-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem;
+    background: rgba(255, 255, 255, 0.02);
+    border-radius: 12px;
+    border: 1px solid transparent;
+    transition: all 0.2s;
+}
+
+.whitelist-item:hover {
+    background: rgba(255, 255, 255, 0.04);
+    border-color: var(--border-color);
 }

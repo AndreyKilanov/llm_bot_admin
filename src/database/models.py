@@ -1,5 +1,6 @@
 from tortoise import fields, models
 
+
 class User(models.Model):
     id = fields.IntField(pk=True)
     username = fields.CharField(max_length=255, unique=True)
@@ -20,7 +21,10 @@ class ChatMessage(models.Model):
     """Модель для хранения сообщений чата."""
     id = fields.IntField(pk=True)
     chat_id = fields.BigIntField(index=True)
+    platform = fields.CharField(max_length=20, default="telegram")
+    chat_type = fields.CharField(max_length=20, default="private")  # private, group, supergroup, guild_text, etc.
     role = fields.CharField(max_length=50)  # user, assistant, system
+    nickname = fields.CharField(max_length=255, null=True)
     content = fields.TextField()
     created_at = fields.DatetimeField(auto_now_add=True)
 
@@ -61,13 +65,15 @@ class LLMPrompt(models.Model):
 class AllowedChat(models.Model):
     """Модель для хранения разрешенных чатов."""
     id = fields.IntField(pk=True)
-    chat_id = fields.BigIntField(unique=True, index=True)
+    chat_id = fields.BigIntField(index=True)
+    platform = fields.CharField(max_length=20, default="telegram")
     title = fields.CharField(max_length=255, null=True)
     is_active = fields.BooleanField(default=True)
     created_at = fields.DatetimeField(auto_now_add=True)
 
     class Meta:
         table = "allowed_chats"
+        unique_together = (("chat_id", "platform"),)
 
     def __str__(self) -> str:
-        return f"{self.title} ({self.chat_id})"
+        return f"{self.title} ({self.chat_id}) [{self.platform}]"

@@ -13,14 +13,88 @@
             Очистить всю историю
         </button>
     </div>
-    <div style="margin-top: 1rem; display: flex; gap: 2rem; font-size: 1.1rem;">
-        <div class="flex">
-            <i data-lucide="message-square" style="color: var(--accent-primary); width: 18px; height: 18px;"></i>
-            <strong>Чатов:</strong> {{ stats.chats_count }}
+    <div
+        style="margin-top: 1.5rem; display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1.5rem;">
+        <!-- Всего чатов -->
+        <div class="stat-card"
+            style="background: rgba(107, 70, 193, 0.05); padding: 1.25rem; border-radius: 20px; border: 1px solid rgba(107, 70, 193, 0.1);">
+            <div class="flex" style="margin-bottom: 0.75rem; color: var(--text-secondary); font-size: 0.9rem;">
+                <i data-lucide="message-square"
+                    style="width: 18px; height: 18px; margin-right: 0.5rem; color: var(--accent-primary);"></i>
+                Всего чатов
+            </div>
+            <div style="display: flex; align-items: baseline; gap: 0.75rem;">
+                <div style="font-size: 2rem; font-weight: 700; color: var(--text-primary);">{{ stats.chats_count }}
+                </div>
+                <div style="font-size: 0.85rem; color: var(--success); font-weight: 500;">
+                    <i data-lucide="trending-up"
+                        style="width: 12px; height: 12px; display: inline-block; vertical-align: middle;"></i>
+                    {{ stats.active_chats_24h }} за 24ч
+                </div>
+            </div>
         </div>
-        <div class="flex">
-            <i data-lucide="send" style="color: var(--accent-primary); width: 18px; height: 18px;"></i>
-            <strong>Сообщений:</strong> {{ stats.total_messages }}
+
+        <!-- Сообщений всего -->
+        <div class="stat-card"
+            style="background: rgba(16, 185, 129, 0.05); padding: 1.25rem; border-radius: 20px; border: 1px solid rgba(16, 185, 129, 0.1);">
+            <div class="flex" style="margin-bottom: 0.75rem; color: var(--text-secondary); font-size: 0.9rem;">
+                <i data-lucide="send"
+                    style="width: 18px; height: 18px; margin-right: 0.5rem; color: var(--success);"></i>
+                Сообщений всего
+            </div>
+            <div style="display: flex; align-items: baseline; gap: 0.75rem;">
+                <div style="font-size: 2rem; font-weight: 700; color: var(--text-primary);">{{ stats.total_messages }}
+                </div>
+                <div style="font-size: 0.85rem; color: var(--success); font-weight: 500;">
+                    +{{ stats.messages_24h }} за 24ч
+                </div>
+            </div>
+        </div>
+
+        <!-- Распределение Платформ -->
+        <div class="stat-card"
+            style="background: rgba(59, 130, 246, 0.05); padding: 1.25rem; border-radius: 20px; border: 1px solid rgba(59, 130, 246, 0.1);">
+            <div class="flex" style="margin-bottom: 0.75rem; color: var(--text-secondary); font-size: 0.9rem;">
+                <i data-lucide="layers" style="width: 18px; height: 18px; margin-right: 0.5rem; color: #3b82f6;"></i>
+                Платформы (сообщения)
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+                <div class="flex justify-between" style="font-size: 0.95rem;">
+                    <span class="flex" style="color: #3b82f6; font-weight: 500;">
+                        <i data-lucide="send" style="width: 14px; height: 14px;"></i> Telegram
+                    </span>
+                    <span style="font-weight: 700;">{{ stats.telegram_messages }}</span>
+                </div>
+                <div class="flex justify-between" style="font-size: 0.95rem;">
+                    <span class="flex" style="color: #8b5cf6; font-weight: 500;">
+                        <i data-lucide="gamepad-2" style="width: 14px; height: 14px;"></i> Discord
+                    </span>
+                    <span style="font-weight: 700;">{{ stats.discord_messages }}</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Активность Бота -->
+        <div class="stat-card"
+            style="background: rgba(245, 158, 11, 0.05); padding: 1.25rem; border-radius: 20px; border: 1px solid rgba(245, 158, 11, 0.1);">
+            <div class="flex" style="margin-bottom: 0.75rem; color: var(--text-secondary); font-size: 0.9rem;">
+                <i data-lucide="cpu" style="width: 18px; height: 18px; margin-right: 0.5rem; color: #f59e0b;"></i>
+                Соотношение (Role)
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+                <div class="flex justify-between" style="font-size: 0.95rem;">
+                    <span class="flex" style="color: var(--text-primary); font-weight: 500;">
+                        <i data-lucide="user" style="width: 14px; height: 14px;"></i> User
+                    </span>
+                    <span style="font-weight: 700;">{{ stats.user_messages }}</span>
+                </div>
+                <div class="flex justify-between" style="font-size: 0.95rem;">
+                    <span class="flex" style="color: var(--accent-primary); font-weight: 500;">
+                        <i data-lucide="bot" style="width: 14px; height: 14px; color: var(--accent-primary);"></i> Bot
+                    </span>
+                    <span style="font-weight: 700;">{{ stats.assistant_messages }}</span>
+                </div>
+            </div>
         </div>
     </div>
 </div>
@@ -37,7 +111,7 @@
             Добавить подключение
         </button>
     </div>
-    <table>
+    <table class="table-fixed">
         <thead>
             <tr>
                 <th>Имя</th>
@@ -196,30 +270,81 @@
         <i data-lucide="users" style="color: var(--accent-primary)"></i>
         Активные чаты
     </h2>
-    <table>
+    <table class="chats-table">
         <thead>
             <tr>
+                <th>Платформа</th>
+                <th>Тип</th>
                 <th>ID Чата</th>
+                <th>Название</th>
                 <th>Сообщений</th>
-                <th>Управление</th>
+                <th>Whitelist</th>
+                <th>Последняя активность</th>
+                <th style="text-align: right;">Управление</th>
             </tr>
         </thead>
-        <tbody>
-            {% for c in chats|sort(attribute='message_count', reverse=True) %}
+        <tbody id="active_chats_body">
+            {% for c in chats|sort(attribute='last_message_at', reverse=True) %}
             <tr>
-                <td>{{ c.chat_id }}</td>
-                <td>{{ c.message_count }}</td>
                 <td>
-                    <button class="btn btn-danger flex" style="padding:0.25rem 0.6rem; font-size:0.8rem;"
-                        onclick="clearChat({{ c.chat_id }})">
-                        <i data-lucide="trash" style="width: 14px; height: 14px;"></i>
-                        Очистить
-                    </button>
+                    {% if c.platform == 'telegram' %}
+                    <div class="flex" title="Telegram" style="color: #3b82f6;">
+                        <i data-lucide="send" style="width: 16px; height: 16px;"></i>
+                    </div>
+                    {% elif c.platform == 'discord' %}
+                    <div class="flex" title="Discord" style="color: #8b5cf6;">
+                        <i data-lucide="gamepad-2" style="width: 16px; height: 16px;"></i>
+                    </div>
+                    {% else %}
+                    {{ c.platform }}
+                    {% endif %}
+                </td>
+                <td>
+                    {% if c.chat_type == 'private' %}
+                    <i data-lucide="user" title="Личное сообщение" style="width: 16px; height: 16px; opacity: 0.7;"></i>
+                    {% else %}
+                    <i data-lucide="users" title="Группа/Сервер" style="width: 16px; height: 16px; opacity: 0.7;"></i>
+                    {% endif %}
+                </td>
+                <td style="font-family: monospace; font-size: 0.9rem; opacity: 0.8;">{{ c.chat_id }}</td>
+                <td style="font-weight: 500;">{{ c.title }}</td>
+                <td>
+                    <span class="badge"
+                        style="background: rgba(107, 70, 193, 0.1); color: var(--accent-primary); padding: 0.2rem 0.6rem; border-radius: 10px; font-weight: 600;">
+                        {{ c.message_count }}
+                    </span>
+                </td>
+                <td>
+                    {% if c.is_allowed %}
+                    <span class="flex" style="color: var(--success); font-size: 0.85rem; font-weight: 500;">
+                        <i data-lucide="check-circle" style="width: 14px; height: 14px; margin-right: 0.4rem;"></i>
+                        В списке
+                    </span>
+                    {% else %}
+                    <span class="flex" style="color: var(--text-secondary); font-size: 0.85rem; opacity: 0.6;">
+                        <i data-lucide="minus-circle" style="width: 14px; height: 14px; margin-right: 0.4rem;"></i>
+                        Нет
+                    </span>
+                    {% endif %}
+                </td>
+                <td style="font-size: 0.85rem; color: var(--text-secondary);">
+                    {{ c.last_message_at.strftime('%H:%M %d.%m') if c.last_message_at else '-' }}
+                </td>
+                <td>
+                    <div class="flex justify-end">
+                        <button class="btn btn-danger flex"
+                            style="padding:0.4rem 0.8rem; font-size:0.8rem; border-radius: 10px;"
+                            onclick="clearChat({{ c.chat_id }}, '{{ c.platform }}')">
+                            <i data-lucide="trash-2" style="width: 14px; height: 14px; margin-right: 0.4rem;"></i>
+                            Очистить
+                        </button>
+                    </div>
                 </td>
             </tr>
             {% else %}
             <tr>
-                <td colspan="3" style="text-align:center;">Нет данных</td>
+                <td colspan="8" style="text-align:center; padding: 2rem; color: var(--text-secondary);">Нет активных
+                    диалогов</td>
             </tr>
             {% endfor %}
         </tbody>
@@ -263,44 +388,159 @@
                 <i data-lucide="x" style="width:24px; height:24px"></i>
             </button>
         </div>
-        <div class="modal-body">
-            <!-- Приватные чаты -->
-            <div class="card" style="margin-bottom: 1.5rem; background: rgba(255,255,255,0.02)">
-                <div class="flex justify-between">
-                    <div>
-                        <h3 style="margin:0 0 0.5rem 0">Приватные сообщения</h3>
-                        <p style="margin:0; color:var(--text-secondary); font-size:0.9rem">
-                            Разрешить боту отвечать в личных сообщениях
-                        </p>
+        <div class="settings-tabs">
+            <div class="tab-item active" onclick="switchSettingsTab('telegram')">
+                <i data-lucide="send" style="width: 16px; height: 16px;"></i>
+                Telegram
+            </div>
+            <div class="tab-item" onclick="switchSettingsTab('discord')">
+                <i data-lucide="gamepad-2" style="width: 16px; height: 16px;"></i>
+                Discord
+            </div>
+        </div>
+        <div class="modal-body" style="padding: 0;">
+            <div class="settings-content" style="padding: 1.5rem;">
+                <!-- Telegram Settings -->
+                <div id="tab_telegram" class="tab-pane active">
+                    <div class="card" style="margin-bottom: 1.5rem; background: rgba(255,255,255,0.02)">
+                        <div class="flex justify-between" style="margin-bottom: 1rem;">
+                            <div>
+                                <h3 style="margin:0 0 0.25rem 0">Включить Telegram бота</h3>
+                                <p style="margin:0; color:var(--text-secondary); font-size:0.85rem">
+                                    Основной бот для Telegram
+                                </p>
+                            </div>
+                            <label class="switch">
+                                <input type="checkbox" id="setting_tg_enabled">
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                        <div class="flex justify-between"
+                            style="margin-bottom: 1rem; border-top: 1px solid var(--border-color); padding-top: 1rem;">
+                            <div>
+                                <h3 style="margin:0 0 0.25rem 0">Приватные сообщения</h3>
+                                <p style="margin:0; color:var(--text-secondary); font-size:0.85rem">
+                                    Разрешить отвечать в ЛС
+                                </p>
+                            </div>
+                            <label class="switch">
+                                <input type="checkbox" id="setting_tg_private">
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                        <div class="flex justify-between"
+                            style="margin-bottom: 1rem; border-top: 1px solid var(--border-color); padding-top: 1rem;">
+                            <div>
+                                <h3 style="margin:0 0 0.25rem 0">Добавление новых чатов</h3>
+                                <p style="margin:0; color:var(--text-secondary); font-size:0.85rem">
+                                    Разрешить боту отвечать в новых чатах
+                                </p>
+                            </div>
+                            <label class="switch">
+                                <input type="checkbox" id="setting_tg_new_chats">
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                        <div class="flex justify-between" style="align-items: center;">
+                            <div>
+                                <h3 style="margin:0 0 0.25rem 0">История сообщений</h3>
+                                <p style="margin:0; color:var(--text-secondary); font-size:0.85rem">
+                                    Количество запоминаемых сообщений
+                                </p>
+                            </div>
+                            <input type="number" id="setting_tg_memory" class="input-tiny" value="10" min="0" max="100">
+                        </div>
                     </div>
-                    <label class="switch">
-                        <input type="checkbox" id="setting_private_chat" onchange="togglePrivateChat()">
-                        <span class="slider"></span>
-                    </label>
+
+                    <div class="card" style="background: rgba(255,255,255,0.02)">
+                        <h3 style="margin-bottom:1rem">Белый список (Telegram)</h3>
+                        <div class="form-group" style="margin-bottom: 1rem;">
+                            <div class="flex" style="gap: 0.5rem;">
+                                <input type="text" id="whitelist_tg_id" placeholder="Chat ID" style="flex-grow:1">
+                                <input type="text" id="whitelist_tg_title" placeholder="Название" style="flex-grow:1">
+                                <button class="btn btn-primary" onclick="addWhitelistItem('telegram')">
+                                    <i data-lucide="plus"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div id="whitelist_list_telegram" class="whitelist-container"></div>
+                    </div>
+                </div>
+
+                <!-- Discord Settings -->
+                <div id="tab_discord" class="tab-pane">
+                    <div class="card" style="margin-bottom: 1.5rem; background: rgba(255,255,255,0.02)">
+                        <div class="flex justify-between" style="margin-bottom: 1rem;">
+                            <div>
+                                <h3 style="margin:0 0 0.25rem 0">Включить Discord бота</h3>
+                                <p style="margin:0; color:var(--text-secondary); font-size:0.85rem">
+                                    Бот для сервера Discord
+                                </p>
+                            </div>
+                            <label class="switch">
+                                <input type="checkbox" id="setting_dc_enabled">
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                        <div class="flex justify-between"
+                            style="margin-bottom: 1rem; border-top: 1px solid var(--border-color); padding-top: 1rem;">
+                            <div>
+                                <h3 style="margin:0 0 0.25rem 0">Личные сообщения</h3>
+                                <p style="margin:0; color:var(--text-secondary); font-size:0.85rem">
+                                    Разрешить отвечать в ЛС (по умолчанию выкл)
+                                </p>
+                            </div>
+                            <label class="switch">
+                                <input type="checkbox" id="setting_dc_dm">
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                        <div class="flex justify-between"
+                            style="margin-bottom: 1rem; border-top: 1px solid var(--border-color); padding-top: 1rem;">
+                            <div>
+                                <h3 style="margin:0 0 0.25rem 0">Добавление новых чатов</h3>
+                                <p style="margin:0; color:var(--text-secondary); font-size:0.85rem">
+                                    Разрешить боту отвечать в новых чатах
+                                </p>
+                            </div>
+                            <label class="switch">
+                                <input type="checkbox" id="setting_dc_new_chats">
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                        <div class="flex justify-between" style="align-items: center;">
+                            <div>
+                                <h3 style="margin:0 0 0.25rem 0">История сообщений</h3>
+                                <p style="margin:0; color:var(--text-secondary); font-size:0.85rem">
+                                    Количество запоминаемых сообщений
+                                </p>
+                            </div>
+                            <input type="number" id="setting_dc_memory" class="input-tiny" value="10" min="0" max="100">
+                        </div>
+                    </div>
+
+                    <div class="card" style="background: rgba(255,255,255,0.02)">
+                        <h3 style="margin-bottom:1rem">Белый список (Discord)</h3>
+                        <div class="form-group" style="margin-bottom: 1rem;">
+                            <div class="flex" style="gap: 0.5rem;">
+                                <input type="text" id="whitelist_dc_id" placeholder="Channel/Server ID"
+                                    style="flex-grow:1">
+                                <input type="text" id="whitelist_dc_title" placeholder="Название" style="flex-grow:1">
+                                <button class="btn btn-primary" onclick="addWhitelistItem('discord')">
+                                    <i data-lucide="plus"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div id="whitelist_list_discord" class="whitelist-container"></div>
+                    </div>
                 </div>
             </div>
 
-            <!-- Белый список групп -->
-            <div class="card" style="background: rgba(255,255,255,0.02)">
-                <h3 style="margin-bottom:1rem">Белый список групп</h3>
-
-                <div class="form-group" style="margin-bottom: 1.5rem;">
-                    <div class="flex" style="gap: 0.5rem;">
-                        <input type="text" id="whitelist_chat_id" placeholder="Chat ID (например -100...)"
-                            style="flex-grow:1">
-                        <input type="text" id="whitelist_title" placeholder="Название (опционально)"
-                            style="flex-grow:1">
-                        <button class="btn btn-primary" onclick="addWhitelistItem()">
-                            <i data-lucide="plus"></i>
-                        </button>
-                    </div>
-                </div>
-
-                <div id="whitelist_list" style="max-height: 300px; overflow-y: auto;">
-                    <!-- Items will be loaded here -->
-                </div>
-            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-primary" onclick="saveSettings()">Сохранить настройки</button>
         </div>
     </div>
 </div>
+
 {% endblock %}

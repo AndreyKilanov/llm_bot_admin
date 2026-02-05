@@ -1,6 +1,4 @@
-import asyncio
 import logging
-from contextlib import asynccontextmanager
 
 import uvicorn
 from aiogram import Bot, Dispatcher
@@ -41,9 +39,8 @@ def main() -> None:
     dp = Dispatcher()
     dp.include_router(handlers.router)
     dp.message.middleware(LoggingMiddleware())
-    dp.message.middleware(WhitelistMiddleware())
+    dp.message.outer_middleware(WhitelistMiddleware())
 
-    # Запускаем FastAPI приложение, которое само решит, как запустить бота (webhook или фоновый polling)
     app = create_app(bot, dp, use_webhook=use_webhook)
     uvicorn.run(app, host=settings.HOST, port=settings.PORT)
 
