@@ -484,11 +484,13 @@ async function loadGlobalSettings() {
         // Telegram
         $('#setting_tg_enabled').checked = res.telegram.enabled;
         $('#setting_tg_private').checked = res.telegram.allow_private;
+        $('#setting_tg_new_chats').checked = res.telegram.allow_new_chats;
         $('#setting_tg_memory').value = res.telegram.memory_limit;
 
         // Discord
         $('#setting_dc_enabled').checked = res.discord.enabled;
         $('#setting_dc_dm').checked = res.discord.allow_dms;
+        $('#setting_dc_new_chats').checked = res.discord.allow_new_chats;
         $('#setting_dc_memory').value = res.discord.memory_limit;
 
     } catch (e) { }
@@ -499,11 +501,13 @@ async function saveSettings() {
         telegram: {
             enabled: $('#setting_tg_enabled').checked,
             allow_private: $('#setting_tg_private').checked,
+            allow_new_chats: $('#setting_tg_new_chats').checked,
             memory_limit: parseInt($('#setting_tg_memory').value) || 10
         },
         discord: {
             enabled: $('#setting_dc_enabled').checked,
             allow_dms: $('#setting_dc_dm').checked,
+            allow_new_chats: $('#setting_dc_new_chats').checked,
             memory_limit: parseInt($('#setting_dc_memory').value) || 10
         }
     };
