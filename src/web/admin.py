@@ -362,21 +362,25 @@ async def api_get_global_settings(_: Annotated[str, Depends(verify_api_session)]
     tg_priv = await Setting.get_or_none(key="allow_private_chat")
     tg_mem = await Setting.get_or_none(key="telegram_memory_limit")
     tg_enabled = await Setting.get_or_none(key="telegram_bot_enabled")
+    tg_new_chats = await Setting.get_or_none(key="telegram_allow_new_chats")
     
     # Discord
     dc_enabled = await Setting.get_or_none(key="discord_bot_enabled")
     dc_mem = await Setting.get_or_none(key="discord_memory_limit")
     dc_dm = await Setting.get_or_none(key="discord_allow_dms")
+    dc_new_chats = await Setting.get_or_none(key="discord_allow_new_chats")
 
     return {
         "telegram": {
             "enabled": str(tg_enabled.value).lower() == "true" if tg_enabled else True,
             "allow_private": str(tg_priv.value).lower() == "true" if tg_priv else True,
+            "allow_new_chats": str(tg_new_chats.value).lower() == "true" if tg_new_chats else True,
             "memory_limit": int(tg_mem.value) if tg_mem else 10
         },
         "discord": {
             "enabled": str(dc_enabled.value).lower() == "true" if dc_enabled else False,
             "allow_dms": str(dc_dm.value).lower() == "true" if dc_dm else False,
+            "allow_new_chats": str(dc_new_chats.value).lower() == "true" if dc_new_chats else False,
             "memory_limit": int(dc_mem.value) if dc_mem else 10
         }
     }
@@ -391,6 +395,7 @@ async def api_set_global_settings(request: Request, _: Annotated[str, Depends(ve
         tg = data["telegram"]
         await Setting.update_or_create(key="telegram_bot_enabled", defaults={"value": str(tg.get("enabled", True))})
         await Setting.update_or_create(key="allow_private_chat", defaults={"value": str(tg.get("allow_private", True))})
+        await Setting.update_or_create(key="telegram_allow_new_chats", defaults={"value": str(tg.get("allow_new_chats", True))})
         await Setting.update_or_create(key="telegram_memory_limit", defaults={"value": str(tg.get("memory_limit", 10))})
 
     # Discord
@@ -398,6 +403,7 @@ async def api_set_global_settings(request: Request, _: Annotated[str, Depends(ve
         dc = data["discord"]
         await Setting.update_or_create(key="discord_bot_enabled", defaults={"value": str(dc.get("enabled", False))})
         await Setting.update_or_create(key="discord_allow_dms", defaults={"value": str(dc.get("allow_dms", False))})
+        await Setting.update_or_create(key="discord_allow_new_chats", defaults={"value": str(dc.get("allow_new_chats", False))})
         await Setting.update_or_create(key="discord_memory_limit", defaults={"value": str(dc.get("memory_limit", 10))})
         
     return {"ok": True}
