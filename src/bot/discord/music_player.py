@@ -5,7 +5,7 @@ from typing import Optional
 
 import discord
 
-from src.services.music_service import music_service
+from src.services import music_service
 
 logger = logging.getLogger("discord.music_player")
 
