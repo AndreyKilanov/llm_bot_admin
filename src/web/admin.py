@@ -357,6 +357,7 @@ async def api_get_global_settings(_: Annotated[str, Depends(verify_api_session)]
     dc_mem = await Setting.get_or_none(key="discord_memory_limit")
     dc_dm = await Setting.get_or_none(key="discord_allow_dms")
     dc_new_chats = await Setting.get_or_none(key="discord_allow_new_chats")
+    dc_music = await Setting.get_or_none(key="discord_music_enabled")
 
     return {
         "telegram": {
@@ -369,6 +370,7 @@ async def api_get_global_settings(_: Annotated[str, Depends(verify_api_session)]
             "enabled": str(dc_enabled.value).lower() == "true" if dc_enabled else False,
             "allow_dms": str(dc_dm.value).lower() == "true" if dc_dm else False,
             "allow_new_chats": str(dc_new_chats.value).lower() == "true" if dc_new_chats else False,
+            "music_enabled": str(dc_music.value).lower() == "true" if dc_music else True,
             "memory_limit": int(dc_mem.value) if dc_mem else 10
         }
     }
@@ -392,6 +394,7 @@ async def api_set_global_settings(request: Request, _: Annotated[str, Depends(ve
         await Setting.update_or_create(key="discord_bot_enabled", defaults={"value": str(dc.get("enabled", False))})
         await Setting.update_or_create(key="discord_allow_dms", defaults={"value": str(dc.get("allow_dms", False))})
         await Setting.update_or_create(key="discord_allow_new_chats", defaults={"value": str(dc.get("allow_new_chats", False))})
+        await Setting.update_or_create(key="discord_music_enabled", defaults={"value": str(dc.get("music_enabled", True))})
         await Setting.update_or_create(key="discord_memory_limit", defaults={"value": str(dc.get("memory_limit", 10))})
         
     return {"ok": True}
