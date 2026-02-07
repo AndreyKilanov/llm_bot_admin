@@ -30,7 +30,11 @@ class LLMService:
 
         base_url = conn.base_url
         if not base_url:
-            base_url = LLMService.PROVIDER_DEFAULT_URLS.get(conn.provider.lower())
+            provider_info = LLMService.PROVIDER_DEFAULT_URLS.get(conn.provider.lower())
+            if isinstance(provider_info, dict):
+                base_url = provider_info.get("url")
+            else:
+                base_url = provider_info  # Fallback for old simple strings if they somehow exist
 
         if not base_url:
             from src.logger import get_logger
@@ -57,7 +61,11 @@ class LLMService:
             True, если ключ действителен и подключение возможно; иначе False.
         """
         if not base_url:
-            base_url = LLMService.PROVIDER_DEFAULT_URLS.get(provider.lower())
+            provider_info = LLMService.PROVIDER_DEFAULT_URLS.get(provider.lower())
+            if isinstance(provider_info, dict):
+                base_url = provider_info.get("url")
+            else:
+                base_url = provider_info
 
         if not base_url:
             return False
