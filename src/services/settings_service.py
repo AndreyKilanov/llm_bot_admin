@@ -24,3 +24,12 @@ class SettingsService:
         """Сохраняет системный промпт в БД."""
         await Setting.update_or_create(defaults={"value": content}, key=KEY_SYSTEM_PROMPT)
 
+    @staticmethod
+    @log_function
+    async def is_discord_music_enabled() -> bool:
+        """Проверяет, включен ли музыкальный плеер Discord."""
+        setting = await Setting.get_or_none(key="discord_music_enabled")
+        if setting:
+            return str(setting.value).lower() == "true"
+        return True  # По умолчанию включен
+
