@@ -363,14 +363,24 @@ class LLMService:
 
         active_conn = await LLMService.get_active_connection()
 
-        if active_conn:
-            api_key = active_conn.api_key
-            model = active_conn.model_name
-            base_url = active_conn.base_url
-        else:
-            api_key = settings.OPENROUTER_API_KEY
-            model = settings.OPENROUTER_MODEL
-            base_url = None
+        if not active_conn:
+            raise ValueError("Отсутствует активное соединение с LLM API")
+
+        api_key = active_conn.api_key
+        model = active_conn.model_name
+        base_url = active_conn.base_url
+        provider = active_conn.provider
+
+        # Если base_url не указан, пытаемся взять дефолтный для провайдера
+        if not base_url:
+            provider_info = LLMService.PROVIDER_DEFAULT_URLS.get(provider.lower())
+            if isinstance(provider_info, dict):
+                base_url = provider_info.get("url")
+            else:
+                base_url = provider_info
+
+        if not base_url:
+            raise ValueError(f"Base URL not found for provider '{provider}'")
 
         full_messages = [{"role": "system", "content": system_prompt}] + messages
 
