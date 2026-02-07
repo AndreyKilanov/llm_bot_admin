@@ -96,19 +96,7 @@ async def admin_page(
             "prompt": System_prompt,
             "connections": connections,
             "now_timestamp": int(time.time()),
-            "providers": settings.PROVIDER_DEFAULT_URLS,
-            "provider_names": {
-                "openrouter": "OpenRouter",
-                "openai": "OpenAI",
-                "anthropic": "Anthropic",
-                "google": "Google (Gemini)",
-                "deepseek": "DeepSeek",
-                "groq": "Groq",
-                "together": "Together AI",
-                "mistral": "Mistral AI",
-                "xai": "xAI (Grok)",
-                "ollama": "Ollama"
-            }
+            "providers": settings.PROVIDER_DEFAULT_URLS
         }
     )
 
