@@ -6,8 +6,7 @@ from aiogram.client.session.aiohttp import AiohttpSession
 from tortoise import Tortoise
 
 from config import Settings
-from src.bot import handlers
-from src.bot.middleware import LoggingMiddleware, WhitelistMiddleware
+from src.bot.telegram import handlers, LoggingMiddleware, WhitelistMiddleware
 from src.database.config import get_tortoise_config
 from src.logger import BaseLogger
 from src.web.app import create_app

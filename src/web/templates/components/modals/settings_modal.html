@@ -1,0 +1,190 @@
+<!-- Модальное окно настроек -->
+<div id="settings_modal" class="modal-overlay" onclick="closeSettingsModal(event)">
+    <div class="modal-content" onclick="event.stopPropagation()">
+        <div class="modal-header">
+            <h2 class="flex" style="margin:0">
+                <i data-lucide="settings" style="color: var(--accent-primary)"></i>
+                Настройки доступа
+            </h2>
+            <button class="btn-transparent" onclick="closeSettingsModal()" style="padding:0.5rem">
+                <i data-lucide="x" style="width:24px; height:24px"></i>
+            </button>
+        </div>
+        <div class="settings-tabs">
+            <div class="tab-item active" onclick="switchSettingsTab('telegram')">
+                <i data-lucide="send" style="width: 16px; height: 16px;"></i>
+                Telegram
+            </div>
+            <div class="tab-item" onclick="switchSettingsTab('discord')">
+                <i data-lucide="gamepad-2" style="width: 16px; height: 16px;"></i>
+                Discord
+            </div>
+        </div>
+        <div class="modal-body" style="padding: 0;">
+            <div class="settings-content" style="padding: 1.5rem;">
+                <!-- Telegram Settings -->
+                <div id="tab_telegram" class="tab-pane active">
+                    <div class="card" style="margin-bottom: 1.5rem; background: rgba(255,255,255,0.02)">
+                        <div class="flex justify-between" style="margin-bottom: 1rem;">
+                            <div>
+                                <h3 style="margin:0 0 0.25rem 0">Включить Telegram бота</h3>
+                                <p style="margin:0; color:var(--text-secondary); font-size:0.85rem">
+                                    Основной бот для Telegram
+                                </p>
+                            </div>
+                            <label class="switch">
+                                <input type="checkbox" id="setting_tg_enabled">
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                        <div class="flex justify-between"
+                            style="margin-bottom: 1rem; border-top: 1px solid var(--border-color); padding-top: 1rem;">
+                            <div>
+                                <h3 style="margin:0 0 0.25rem 0">Приватные сообщения</h3>
+                                <p style="margin:0; color:var(--text-secondary); font-size:0.85rem">
+                                    Разрешить отвечать в ЛС
+                                </p>
+                            </div>
+                            <label class="switch">
+                                <input type="checkbox" id="setting_tg_private">
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                        <div class="flex justify-between"
+                            style="margin-bottom: 1rem; border-top: 1px solid var(--border-color); padding-top: 1rem;">
+                            <div>
+                                <h3 style="margin:0 0 0.25rem 0">Добавление новых чатов</h3>
+                                <p style="margin:0; color:var(--text-secondary); font-size:0.85rem">
+                                    Разрешить боту отвечать в новых чатах
+                                </p>
+                            </div>
+                            <label class="switch">
+                                <input type="checkbox" id="setting_tg_new_chats">
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                        <div class="flex justify-between" style="align-items: center;">
+                            <div>
+                                <h3 style="margin:0 0 0.25rem 0">История сообщений</h3>
+                                <p style="margin:0; color:var(--text-secondary); font-size:0.85rem">
+                                    Количество запоминаемых сообщений
+                                </p>
+                            </div>
+                            <input type="number" id="setting_tg_memory" class="input-tiny" value="10" min="0" max="100">
+                        </div>
+                    </div>
+
+                    <div class="card" style="background: rgba(255,255,255,0.02)">
+                        <h3 style="margin-bottom:1rem">Белый список (Telegram)</h3>
+                        <div class="form-group" style="margin-bottom: 1rem;">
+                            <div class="flex" style="gap: 0.5rem;">
+                                <input type="text" id="whitelist_tg_id" placeholder="Chat ID" style="flex-grow:1">
+                                <input type="text" id="whitelist_tg_title" placeholder="Название" style="flex-grow:1">
+                                <button class="btn btn-primary" onclick="addWhitelistItem('telegram')">
+                                    <i data-lucide="plus"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div id="whitelist_list_telegram" class="whitelist-container"></div>
+                    </div>
+                </div>
+
+                <!-- Discord Settings -->
+                <div id="tab_discord" class="tab-pane">
+                    <div class="card" style="margin-bottom: 1.5rem; background: rgba(255,255,255,0.02)">
+                        <div class="flex justify-between" style="margin-bottom: 1rem;">
+                            <div>
+                                <h3 style="margin:0 0 0.25rem 0">Включить Discord бота</h3>
+                                <p style="margin:0; color:var(--text-secondary); font-size:0.85rem">
+                                    Бот для сервера Discord
+                                </p>
+                            </div>
+                            <label class="switch">
+                                <input type="checkbox" id="setting_dc_enabled">
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                        <div class="flex justify-between"
+                            style="margin-bottom: 1rem; border-top: 1px solid var(--border-color); padding-top: 1rem;">
+                            <div>
+                                <h3 style="margin:0 0 0.25rem 0">Личные сообщения</h3>
+                                <p style="margin:0; color:var(--text-secondary); font-size:0.85rem">
+                                    Разрешить отвечать в ЛС (по умолчанию выкл)
+                                </p>
+                            </div>
+                            <label class="switch">
+                                <input type="checkbox" id="setting_dc_dm">
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                        <div class="flex justify-between"
+                            style="margin-bottom: 1rem; border-top: 1px solid var(--border-color); padding-top: 1rem;">
+                            <div>
+                                <h3 style="margin:0 0 0.25rem 0">Добавление новых чатов</h3>
+                                <p style="margin:0; color:var(--text-secondary); font-size:0.85rem">
+                                    Разрешить боту отвечать в новых чатах
+                                </p>
+                            </div>
+                            <label class="switch">
+                                <input type="checkbox" id="setting_dc_new_chats">
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                        <div class="flex justify-between"
+                            style="margin-bottom: 1rem; border-top: 1px solid var(--border-color); padding-top: 1rem;">
+                            <div>
+                                <h3 style="margin:0 0 0.25rem 0">Музыкальный плеер</h3>
+                                <p style="margin:0; color:var(--text-secondary); font-size:0.85rem">
+                                    Включить функционал проигрывания музыки
+                                </p>
+                            </div>
+                            <label class="switch">
+                                <input type="checkbox" id="setting_dc_music">
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                        <div class="flex justify-between"
+                            style="align-items: center; margin-bottom: 1rem; border-top: 1px solid var(--border-color); padding-top: 1rem;">
+                            <div>
+                                <h3 style="margin:0 0 0.25rem 0">Время перемотки</h3>
+                                <p style="margin:0; color:var(--text-secondary); font-size:0.85rem">
+                                    Интервал перемотки (в секундах)
+                                </p>
+                            </div>
+                            <input type="number" id="setting_dc_seek" class="input-tiny" value="10" min="1" max="600">
+                        </div>
+                        <div class="flex justify-between"
+                            style="align-items: center; border-top: 1px solid var(--border-color); padding-top: 1rem;">
+                            <div>
+                                <h3 style="margin:0 0 0.25rem 0">История сообщений</h3>
+                                <p style="margin:0; color:var(--text-secondary); font-size:0.85rem">
+                                    Количество запоминаемых сообщений
+                                </p>
+                            </div>
+                            <input type="number" id="setting_dc_memory" class="input-tiny" value="10" min="0" max="100">
+                        </div>
+                    </div>
+
+                    <div class="card" style="background: rgba(255,255,255,0.02)">
+                        <h3 style="margin-bottom:1rem">Белый список (Discord)</h3>
+                        <div class="form-group" style="margin-bottom: 1rem;">
+                            <div class="flex" style="gap: 0.5rem;">
+                                <input type="text" id="whitelist_dc_id" placeholder="Channel/Server ID"
+                                    style="flex-grow:1">
+                                <input type="text" id="whitelist_dc_title" placeholder="Название" style="flex-grow:1">
+                                <button class="btn btn-primary" onclick="addWhitelistItem('discord')">
+                                    <i data-lucide="plus"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div id="whitelist_list_discord" class="whitelist-container"></div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-primary" onclick="saveSettings()">Сохранить настройки</button>
+        </div>
+    </div>
+</div>

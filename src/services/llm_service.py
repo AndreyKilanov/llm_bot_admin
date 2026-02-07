@@ -1,5 +1,6 @@
 from config import settings
 from src.database.models import LLMConnection, LLMPrompt
+from src.exceptions import ConfigurationError
 from src.llm import LLMClient
 from src.logger import log_function
 
@@ -30,7 +31,11 @@ class LLMService:
 
         base_url = conn.base_url
         if not base_url:
-            base_url = LLMService.PROVIDER_DEFAULT_URLS.get(conn.provider.lower())
+            provider_info = LLMService.PROVIDER_DEFAULT_URLS.get(conn.provider.lower())
+            if isinstance(provider_info, dict):
+                base_url = provider_info.get("url")
+            else:
+                base_url = provider_info  # Fallback for old simple strings if they somehow exist
 
         if not base_url:
             from src.logger import get_logger
@@ -57,7 +62,11 @@ class LLMService:
             True, если ключ действителен и подключение возможно; иначе False.
         """
         if not base_url:
-            base_url = LLMService.PROVIDER_DEFAULT_URLS.get(provider.lower())
+            provider_info = LLMService.PROVIDER_DEFAULT_URLS.get(provider.lower())
+            if isinstance(provider_info, dict):
+                base_url = provider_info.get("url")
+            else:
+                base_url = provider_info
 
         if not base_url:
             return False
@@ -282,6 +291,19 @@ class LLMService:
         return True
 
     @staticmethod
+    async def deactivate_prompt(prompt_id: int) -> bool:
+        """Деактивирует указанный промпт.
+
+        Args:
+            prompt_id: ID промпта, который нужно деактивировать.
+
+        Returns:
+            True, если промпт найден и успешно деактивирован; иначе False.
+        """
+        updated_count = await LLMPrompt.filter(id=prompt_id).update(is_active=False)
+        return updated_count > 0
+
+    @staticmethod
     async def delete_prompt(prompt_id: int) -> bool:
         """Удаляет промпт по его ID.
 
@@ -355,14 +377,23 @@ class LLMService:
 
         active_conn = await LLMService.get_active_connection()
 
-        if active_conn:
-            api_key = active_conn.api_key
-            model = active_conn.model_name
-            base_url = active_conn.base_url
-        else:
-            api_key = settings.OPENROUTER_API_KEY
-            model = settings.OPENROUTER_MODEL
-            base_url = None
+        if not active_conn:
+            raise ConfigurationError("Отсутствует активное соединение с LLM API")
+
+        api_key = active_conn.api_key
+        model = active_conn.model_name
+        base_url = active_conn.base_url
+        provider = active_conn.provider
+        
+        if not base_url:
+            provider_info = LLMService.PROVIDER_DEFAULT_URLS.get(provider.lower())
+            if isinstance(provider_info, dict):
+                base_url = provider_info.get("url")
+            else:
+                base_url = provider_info
+
+        if not base_url:
+            raise ConfigurationError(f"Base URL not found for provider '{provider}'")
 
         full_messages = [{"role": "system", "content": system_prompt}] + messages
 

@@ -1,0 +1,86 @@
+<!-- Активные чаты -->
+<div class="card">
+    <h2 class="flex">
+        <i data-lucide="users" style="color: var(--accent-primary)"></i>
+        Активные чаты
+    </h2>
+    <table class="chats-table">
+        <thead>
+            <tr>
+                <th>Платформа</th>
+                <th>Тип</th>
+                <th>ID Чата</th>
+                <th>Название</th>
+                <th>Сообщений</th>
+                <th>Whitelist</th>
+                <th>Последняя активность</th>
+                <th style="text-align: right;">Управление</th>
+            </tr>
+        </thead>
+        <tbody id="active_chats_body">
+            {% for c in chats|sort(attribute='last_message_at', reverse=True) %}
+            <tr>
+                <td>
+                    {% if c.platform == 'telegram' %}
+                    <div class="flex" title="Telegram" style="color: #3b82f6;">
+                        <i data-lucide="send" style="width: 16px; height: 16px;"></i>
+                    </div>
+                    {% elif c.platform == 'discord' %}
+                    <div class="flex" title="Discord" style="color: #8b5cf6;">
+                        <i data-lucide="gamepad-2" style="width: 16px; height: 16px;"></i>
+                    </div>
+                    {% else %}
+                    {{ c.platform }}
+                    {% endif %}
+                </td>
+                <td>
+                    {% if c.chat_type == 'private' %}
+                    <i data-lucide="user" title="Личное сообщение" style="width: 16px; height: 16px; opacity: 0.7;"></i>
+                    {% else %}
+                    <i data-lucide="users" title="Группа/Сервер" style="width: 16px; height: 16px; opacity: 0.7;"></i>
+                    {% endif %}
+                </td>
+                <td style="font-family: monospace; font-size: 0.9rem; opacity: 0.8;">{{ c.chat_id }}</td>
+                <td style="font-weight: 500;">{{ c.title }}</td>
+                <td>
+                    <span class="badge"
+                        style="background: rgba(107, 70, 193, 0.1); color: var(--accent-primary); padding: 0.2rem 0.6rem; border-radius: 10px; font-weight: 600;">
+                        {{ c.message_count }}
+                    </span>
+                </td>
+                <td>
+                    {% if c.is_allowed %}
+                    <span class="flex" style="color: var(--success); font-size: 0.85rem; font-weight: 500;">
+                        <i data-lucide="check-circle" style="width: 14px; height: 14px; margin-right: 0.4rem;"></i>
+                        В списке
+                    </span>
+                    {% else %}
+                    <span class="flex" style="color: var(--text-secondary); font-size: 0.85rem; opacity: 0.6;">
+                        <i data-lucide="minus-circle" style="width: 14px; height: 14px; margin-right: 0.4rem;"></i>
+                        Нет
+                    </span>
+                    {% endif %}
+                </td>
+                <td style="font-size: 0.85rem; color: var(--text-secondary);">
+                    {{ c.last_message_at.strftime('%H:%M %d.%m') if c.last_message_at else '-' }}
+                </td>
+                <td>
+                    <div class="flex justify-end">
+                        <button class="btn btn-danger flex"
+                            style="padding:0.4rem 0.8rem; font-size:0.8rem; border-radius: 10px;"
+                            onclick="clearChat({{ c.chat_id }}, '{{ c.platform }}')">
+                            <i data-lucide="trash-2" style="width: 14px; height: 14px; margin-right: 0.4rem;"></i>
+                            Очистить
+                        </button>
+                    </div>
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="8" style="text-align:center; padding: 2rem; color: var(--text-secondary);">Нет активных
+                    диалогов</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>

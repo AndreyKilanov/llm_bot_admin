@@ -3,7 +3,7 @@ from unittest.mock import AsyncMock, MagicMock
 from aiogram.enums import ChatType
 from tortoise import Tortoise
 
-from src.bot.middleware import WhitelistMiddleware
+from src.bot.telegram.middleware import WhitelistMiddleware
 from src.database.models import AllowedChat, Setting
 
 @pytest.fixture(scope="function", autouse=True)

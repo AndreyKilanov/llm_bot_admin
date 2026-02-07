@@ -1,3 +1,10 @@
+"""
+Middleware для Telegram бота.
+
+Этот модуль содержит middleware для логирования сообщений
+и проверки доступа к боту через whitelist.
+"""
+
 import logging
 from typing import Any, Awaitable, Callable, Dict
 
@@ -7,7 +14,7 @@ from aiogram.types import Message
 
 from src.database.models import AllowedChat, Setting
 
-logger = logging.getLogger("bot.middleware")
+logger = logging.getLogger("bot.telegram.middleware")
 
 
 class LoggingMiddleware(BaseMiddleware):
@@ -19,6 +26,17 @@ class LoggingMiddleware(BaseMiddleware):
         event: Message,
         data: Dict[str, Any]
     ) -> Any:
+        """
+        Обработка входящего сообщения с логированием.
+        
+        Args:
+            handler: Следующий обработчик в цепочке
+            event: Входящее сообщение
+            data: Дополнительные данные
+            
+        Returns:
+            Результат выполнения handler
+        """
         message = event
         user_id = message.from_user.id if message.from_user else "Unknown"
         username = message.from_user.username if message.from_user else "None"
@@ -43,6 +61,17 @@ class WhitelistMiddleware(BaseMiddleware):
         event: Message,
         data: Dict[str, Any]
     ) -> Any:
+        """
+        Проверка доступа к боту через whitelist и глобальные настройки.
+        
+        Args:
+            handler: Следующий обработчик в цепочке
+            event: Входящее сообщение
+            data: Дополнительные данные
+            
+        Returns:
+            Результат выполнения handler или None если доступ запрещён
+        """
         message = event
 
         enabled_setting = await Setting.get_or_none(key="telegram_bot_enabled")

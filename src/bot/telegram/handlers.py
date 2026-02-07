@@ -1,3 +1,10 @@
+"""
+Обработчики сообщений и команд для Telegram бота.
+
+Этот модуль содержит все handlers для обработки команд и текстовых сообщений,
+включая интеграцию с LLM сервисом.
+"""
+
 from aiogram import Router
 from aiogram.enums import ChatAction, ChatType
 from aiogram.filters import Command
@@ -5,6 +12,7 @@ from aiogram.types import Message
 
 from config import Settings
 from src.logger import log_function
+from src.exceptions import ConfigurationError
 from src.services import HistoryService, LLMService, SettingsService
 
 router = Router()
@@ -14,6 +22,12 @@ _bot_username: str | None = None
 
 
 def _get_admin_ids() -> set[int]:
+    """
+    Получение списка ID администраторов из настроек.
+    
+    Returns:
+        Множество ID администраторов
+    """
     s = Settings()
     if not s.TELEGRAM_ADMIN_IDS:
         return set()
@@ -23,6 +37,7 @@ def _get_admin_ids() -> set[int]:
 @router.message(Command("start"))
 @log_function
 async def cmd_start(message: Message) -> None:
+    """Обработчик команды /start."""
     await message.answer(
         "Привет! Я бот с поддержкой LLM. Напиши текст — и я отвечу.\n"
         "Используй /help для списка команд."
@@ -31,12 +46,14 @@ async def cmd_start(message: Message) -> None:
 
 @router.message(Command("clear"))
 async def cmd_clear(message: Message) -> None:
+    """Обработчик команды /clear для очистки истории."""
     await HistoryService.clear_history(message.chat.id, platform="telegram")
     await message.answer("История очищена.")
 
 
 @router.message(Command("help"))
 async def cmd_help(message: Message) -> None:
+    """Обработчик команды /help."""
     help_text = """
 🤖 **LLM Бот-ассистент**
 
@@ -56,6 +73,7 @@ async def cmd_help(message: Message) -> None:
 
 @router.message(Command("prompt"))
 async def cmd_prompt(message: Message) -> None:
+    """Обработчик команды /prompt для просмотра системного промпта."""
     text = await SettingsService.get_system_prompt()
     if len(text) > 400:
         text = text[:400] + "\n… (обрезано)"
@@ -64,6 +82,7 @@ async def cmd_prompt(message: Message) -> None:
 
 @router.message(Command("set_prompt"))
 async def cmd_set_prompt(message: Message) -> None:
+    """Обработчик команды /set_prompt для установки нового системного промпта."""
     admin_ids = _get_admin_ids()
     if not admin_ids or (message.from_user and message.from_user.id not in admin_ids):
         await message.answer("Нет доступа.")
@@ -77,6 +96,7 @@ async def cmd_set_prompt(message: Message) -> None:
 
 @router.message(Command("cancel"))
 async def cmd_cancel(message: Message) -> None:
+    """Обработчик команды /cancel для отмены операции."""
     uid = message.from_user.id if message.from_user else 0
     if uid in _waiting_prompt:
         _waiting_prompt.discard(uid)
@@ -84,6 +104,15 @@ async def cmd_cancel(message: Message) -> None:
 
 
 async def _ensure_bot_username(bot) -> str:
+    """
+    Получение и кэширование имени пользователя бота.
+    
+    Args:
+        bot: Экземпляр бота
+        
+    Returns:
+        Имя пользователя бота
+    """
     global _bot_username
     if _bot_username is None:
         bot_info = await bot.get_me()
@@ -94,6 +123,12 @@ async def _ensure_bot_username(bot) -> str:
 @router.message()
 @log_function
 async def on_text(message: Message) -> None:
+    """
+    Обработчик всех текстовых сообщений.
+    
+    Обрабатывает сообщения от пользователей, проверяет упоминания в группах,
+    взаимодействует с LLM сервисом и сохраняет историю.
+    """
     if not message.text or not message.text.strip():
         return
 
@@ -152,8 +187,15 @@ async def on_text(message: Message) -> None:
 
     try:
         reply = await LLMService.generate_response(messages=last_messages)
+    except (ValueError, ConfigurationError) as e:
+        error_msg = str(e)
+        if "Отсутствует активное соединение" in error_msg:
+            await message.answer("❌ Отсутствует активное соединение с LLM API")
+        else:
+            await message.answer(f"❌ Ошибка конфигурации: {error_msg}")
+        return
     except Exception as e:
-        await message.answer(f"Ошибка при запросе к модели: {e}")
+        await message.answer("❌ Отсутствует активное соединение с LLM API или сервис недоступен")
         return
 
     await HistoryService.add_message(
