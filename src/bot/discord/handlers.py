@@ -134,6 +134,13 @@ class MessageHandler:
                 else:
                     await message.channel.send(response_text)
 
+            except ValueError as e:
+                error_msg = str(e)
+                logger.error(f"Validation/Config error in Discord handler: {error_msg}")
+                if "Отсутствует активное соединение" in error_msg:
+                    await message.channel.send("❌ Отсутствует активное соединение с LLM API")
+                else:
+                    await message.channel.send(f"❌ Ошибка конфигурации: {error_msg}")
             except Exception as e:
                 logger.error(f"Error generating response: {e}")
-                await message.channel.send("Произошла ошибка при обработке запроса.")
+                await message.channel.send("❌ Отсутствует активное соединение с LLM API или сервис недоступен")
