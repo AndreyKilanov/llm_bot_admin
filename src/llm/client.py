@@ -34,6 +34,8 @@ class LLMClient:
         if not filtered_messages:
             raise ValueError("No messages to send")
 
+        if not base_url:
+            raise ValueError("base_url is required")
         url = base_url.rstrip("/")
         if url.endswith("/chat/completions"):
             pass
@@ -95,6 +97,8 @@ class LLMClient:
     @staticmethod
     async def _validate_generic_key(api_key: str, base_url: str) -> bool:
         """Внутренний метод для универсальной проверки ключа через эндпоинт /models."""
+        if not base_url:
+            return False
         url = base_url.rstrip("/")
 
         if url.endswith("/chat/completions"):
