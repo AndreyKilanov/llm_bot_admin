@@ -57,14 +57,16 @@ class Settings(BaseSettings):
 
     # Стандартные базовые URL для популярных провайдеров (OpenAPI совместимые)
     PROVIDER_DEFAULT_URLS: dict = {
-        "openrouter": "https://openrouter.ai/api/v1",
-        "openai": "https://api.openai.com/v1",
-        "groq": "https://api.groq.com/openai/v1",
-        "together": "https://api.together.xyz/v1",
-        "mistral": "https://api.mistral.ai/v1",
-        "deepseek": "https://api.deepseek.com/v1",
-        "xai": "https://api.x.ai/v1",
-        "ollama": "http://localhost:11434"
+        "openrouter": {"name": "OpenRouter", "url": "https://openrouter.ai/api/v1"},
+        "openai": {"name": "OpenAI", "url": "https://api.openai.com/v1"},
+        "anthropic": {"name": "Anthropic", "url": "https://api.anthropic.com/v1"},
+        "google": {"name": "Google (Gemini)", "url": "https://generativelanguage.googleapis.com"},
+        "deepseek": {"name": "DeepSeek", "url": "https://api.deepseek.com/v1"},
+        "groq": {"name": "Groq", "url": "https://api.groq.com/openai/v1"},
+        "together": {"name": "Together AI", "url": "https://api.together.xyz/v1"},
+        "mistral": {"name": "Mistral AI", "url": "https://api.mistral.ai/v1"},
+        "xai": {"name": "xAI (Grok)", "url": "https://api.x.ai/v1"},
+        "ollama": {"name": "Ollama", "url": "http://localhost:11434"}
     }
 
 settings = Settings()
