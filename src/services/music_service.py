@@ -27,13 +27,14 @@ class MusicService:
     
     _instance: Optional["MusicService"] = None
 
+    # Настройки для ускорения извлечения данных
     YTDL_OPTIONS = {
         "format": "bestaudio/best",
         "extractaudio": True,
         "audioformat": "mp3",
         "outtmpl": "%(extractor)s-%(id)s-%(title)s.%(ext)s",
         "restrictfilenames": True,
-        "noplaylist": False,
+        "noplaylist": True,
         "nocheckcertificate": True,
         "ignoreerrors": False,
         "logtostderr": False,
@@ -41,6 +42,10 @@ class MusicService:
         "no_warnings": True,
         "default_search": "ytsearch",
         "source_address": "0.0.0.0",
+        "extract_flat": "in_playlist",  # Ускоряет извлечение метаданных
+        "cachedir": False,
+        "youtube_include_dash_manifest": False,
+        "youtube_include_hls_manifest": False,
     }
 
     FFMPEG_OPTIONS = {
@@ -58,8 +63,27 @@ class MusicService:
         """Инициализация сервиса."""
         if not hasattr(self, "_initialized"):
             self.ytdl = yt_dlp.YoutubeDL(self.YTDL_OPTIONS)
+            self._search_cache: dict[str, list[dict]] = {}
+            self._info_cache: dict[str, dict] = {}
             self._initialized = True
-            logger.info("MusicService инициализирован")
+            logger.info("MusicService инициализирован (с кэшированием метаданных)")
+
+    def is_valid_url(self, url: str) -> bool:
+        """
+        Проверка валидности YouTube URL.
+        
+        Args:
+            url: URL для проверки
+            
+        Returns:
+            True если URL корректный и относится к YouTube
+        """
+        from urllib.parse import urlparse
+        try:
+            parsed = urlparse(url)
+            return parsed.netloc in ("www.youtube.com", "youtube.com", "m.youtube.com", "youtu.be")
+        except:
+            return False
     
     async def search_tracks(
         self, 
@@ -74,13 +98,13 @@ class MusicService:
             max_results: Максимальное количество результатов
             
         Returns:
-            Список словарей с информацией о треках:
-            - title: Название трека
-            - url: URL трека
-            - duration: Длительность в секундах
-            - thumbnail: URL миниатюры
-            - uploader: Автор/канал
+            Список словарей с информацией о треках
         """
+        cache_key = f"{query}:{max_results}"
+        if cache_key in self._search_cache:
+            logger.info(f"Получение из кэша поиска: {query}")
+            return self._search_cache[cache_key]
+
         logger.info(f"Поиск треков: {query}")
         
         try:
@@ -109,7 +133,10 @@ class MusicService:
                         "id": entry.get("id", ""),
                     }
                     tracks.append(track_info)
-            
+                    if track_info["url"]:
+                        self._info_cache[track_info["url"]] = track_info
+
+            self._search_cache[cache_key] = tracks
             logger.info(f"Найдено треков: {len(tracks)}")
             return tracks
             
@@ -127,6 +154,9 @@ class MusicService:
         Returns:
             Словарь с информацией о треке или None при ошибке
         """
+        if url in self._info_cache:
+            return self._info_cache[url]
+
         logger.info(f"Получение информации о треке: {url}")
         
         try:
@@ -139,7 +169,7 @@ class MusicService:
             if not data:
                 return None
             
-            return {
+            info = {
                 "title": data.get("title", "Неизвестно"),
                 "url": data.get("webpage_url") or data.get("url", ""),
                 "duration": data.get("duration", 0),
@@ -148,23 +178,20 @@ class MusicService:
                 "id": data.get("id", ""),
             }
             
+            self._info_cache[url] = info
+            return info
+            
         except Exception as e:
             logger.error(f"Ошибка при получении информации о треке: {e}", exc_info=True)
             return None
     
-    async def get_audio_source(self, url: str):
+    async def get_audio_source(self, url: str, start_time: int = 0):
         """
         Получение аудио-потока для воспроизведения в Discord.
-        
-        Args:
-            url: URL трека на YouTube
-            
-        Returns:
-            Объект FFmpegPCMAudio для воспроизведения или None при ошибке
         """
         import discord
         
-        logger.info(f"Получение аудио-потока: {url}")
+        logger.info(f"Получение свежего аудио-потока: {url} (с {start_time}с)")
         
         try:
             loop = asyncio.get_event_loop()
@@ -184,8 +211,13 @@ class MusicService:
             if not audio_url:
                 logger.error("URL аудио-потока не найден")
                 return None
-            source = discord.FFmpegPCMAudio(audio_url, **self.FFMPEG_OPTIONS)
-            logger.info("Аудио-поток успешно создан")
+            
+            ffmpeg_options = self.FFMPEG_OPTIONS.copy()
+            if start_time > 0:
+                ffmpeg_options["options"] = f"{ffmpeg_options['options']} -ss {int(start_time)}"
+                
+            source = discord.FFmpegPCMAudio(audio_url, **ffmpeg_options)
+            logger.info(f"Аудио-поток создан (позиция: {int(start_time)}с)")
 
             return source
             
@@ -206,9 +238,9 @@ class MusicService:
         if seconds == 0:
             return "Неизвестно"
         
-        hours = seconds // 3600
-        minutes = (seconds % 3600) // 60
-        secs = seconds % 60
+        hours = int(seconds // 3600)
+        minutes = int((seconds % 3600) // 60)
+        secs = int(seconds % 60)
         
         if hours > 0:
             return f"{hours}:{minutes:02d}:{secs:02d}"
