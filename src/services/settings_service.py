@@ -33,3 +33,15 @@ class SettingsService:
             return str(setting.value).lower() == "true"
         return True  # По умолчанию включен
 
+    @staticmethod
+    @log_function
+    async def get_discord_seek_time() -> int:
+        """Возвращает время перемотки для Discord (в секундах)."""
+        setting = await Setting.get_or_none(key="discord_seek_time")
+        if setting:
+            try:
+                return int(setting.value)
+            except (ValueError, TypeError):
+                return 10
+        return 10
+
