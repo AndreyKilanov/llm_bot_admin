@@ -280,6 +280,12 @@ async def api_activate_prompt(prompt_id: int, _: Annotated[str, Depends(verify_a
     return {"ok": True}
 
 
+@router.post("/api/llm/prompts/{prompt_id}/deactivate")
+async def api_deactivate_prompt(prompt_id: int, _: Annotated[str, Depends(verify_api_session)]) -> dict:
+    await LLMService.deactivate_prompt(prompt_id)
+    return {"ok": True}
+
+
 @router.delete("/api/llm/prompts/{prompt_id}")
 async def api_delete_prompt(prompt_id: int, _: Annotated[str, Depends(verify_api_session)]) -> dict:
     success = await LLMService.delete_prompt(prompt_id)
@@ -358,6 +364,7 @@ async def api_get_global_settings(_: Annotated[str, Depends(verify_api_session)]
     dc_dm = await Setting.get_or_none(key="discord_allow_dms")
     dc_new_chats = await Setting.get_or_none(key="discord_allow_new_chats")
     dc_music = await Setting.get_or_none(key="discord_music_enabled")
+    dc_seek = await Setting.get_or_none(key="discord_seek_time")
 
     return {
         "telegram": {
@@ -371,7 +378,8 @@ async def api_get_global_settings(_: Annotated[str, Depends(verify_api_session)]
             "allow_dms": str(dc_dm.value).lower() == "true" if dc_dm else False,
             "allow_new_chats": str(dc_new_chats.value).lower() == "true" if dc_new_chats else False,
             "music_enabled": str(dc_music.value).lower() == "true" if dc_music else True,
-            "memory_limit": int(dc_mem.value) if dc_mem else 10
+            "memory_limit": int(dc_mem.value) if dc_mem else 10,
+            "seek_time": int(dc_seek.value) if dc_seek else 15
         }
     }
 
@@ -396,5 +404,6 @@ async def api_set_global_settings(request: Request, _: Annotated[str, Depends(ve
         await Setting.update_or_create(key="discord_allow_new_chats", defaults={"value": str(dc.get("allow_new_chats", False))})
         await Setting.update_or_create(key="discord_music_enabled", defaults={"value": str(dc.get("music_enabled", True))})
         await Setting.update_or_create(key="discord_memory_limit", defaults={"value": str(dc.get("memory_limit", 10))})
+        await Setting.update_or_create(key="discord_seek_time", defaults={"value": str(dc.get("seek_time", 15))})
         
     return {"ok": True}
