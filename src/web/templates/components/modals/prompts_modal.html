@@ -13,19 +13,31 @@
         <div class="modal-body">
             <div id="prompts_list"></div>
 
-            <div id="prompt_form" class="card" style="margin-top: 1.5rem; background: rgba(255,255,255,0.02)">
-                <h3 id="prompt_form_title" style="margin-bottom:1.25rem">Добавить промпт</h3>
-                <div class="form-group">
-                    <input type="text" id="prompt_name" placeholder="Название промпта">
-                    <textarea id="prompt_content" placeholder="Текст системного промпта" rows="5"></textarea>
-                    <div class="flex justify-end" style="margin-top: 1.5rem; gap: 1rem;">
-                        <button id="prompt_cancel_btn" onclick="cancelEditPrompt()" class="btn"
-                            style="display:none; background:transparent; border:1px solid var(--border-color);">
+            <div id="prompt_form" class="card"
+                style="margin-top: 2rem; background: rgba(0,0,0,0.15); border: 1px solid rgba(255,255,255,0.05); padding: 1.5rem;">
+                <h3 id="prompt_form_title" style="margin-bottom:1.5rem; font-size: 1.25rem;">
+                    <i data-lucide="plus-circle" style="color: var(--accent-secondary); width: 20px; height: 20px;"></i>
+                    Добавить промпт
+                </h3>
+                <div class="form-group" style="gap: 1rem;">
+                    <div style="position: relative;">
+                        <input type="text" id="prompt_name" placeholder="Название промпта"
+                            style="padding-left: 2.75rem;">
+                        <i data-lucide="tag"
+                            style="position: absolute; left: 1rem; top: 50%; transform: translateY(-50%); width: 18px; height: 18px; color: var(--text-secondary);"></i>
+                    </div>
+                    <textarea id="prompt_content" placeholder="Текст системного промпта" rows="6"></textarea>
+
+                    <div class="flex justify-end" style="margin-top: 1rem; gap: 1rem;">
+                        <button id="prompt_cancel_btn" onclick="cancelEditPrompt()"
+                            class="btn btn-secondary btn-status-toggle" style="display:none;">
+                            <i data-lucide="x-circle" style="width: 18px; height: 18px;"></i>
                             Отмена
                         </button>
-                        <button id="prompt_submit_btn" onclick="submitPrompt()" class="btn btn-primary">
-                            <i data-lucide="plus-square" style="width: 16px; height: 16px;"></i>
-                            Добавить промпт
+                        <button id="prompt_submit_btn" onclick="submitPrompt()"
+                            class="btn btn-primary btn-status-toggle">
+                            <i data-lucide="plus-square" style="width: 18px; height: 18px;"></i>
+                            Добавить
                         </button>
                     </div>
                 </div>
