@@ -4,8 +4,8 @@ import discord
 from discord import Message
 
 from src.database.models import AllowedChat, Setting
-from src.services.history_service import HistoryService
-from src.services.llm_service import LLMService
+from src.exceptions import ConfigurationError
+from src.services import HistoryService, LLMService
 
 logger = logging.getLogger("discord.handlers")
 
@@ -41,8 +41,7 @@ class MessageHandler:
 
         chat_id = message.channel.id
         is_dm = isinstance(message.channel, discord.DMChannel)
-        is_mentioned = (self.bot.user in message.mentions or
-                        f"<@{self.bot.user.id}>" in message.content)
+        is_mentioned = (self.bot.user in message.mentions or f"<@{self.bot.user.id}>" in message.content)
         guild_id = message.guild.id if message.guild else None
         allowed_channel = await AllowedChat.get_or_none(chat_id=chat_id, platform="discord")
         allowed_guild = await AllowedChat.get_or_none(chat_id=guild_id, platform="discord") if guild_id else None
@@ -134,9 +133,9 @@ class MessageHandler:
                 else:
                     await message.channel.send(response_text)
 
-            except ValueError as e:
+            except (ValueError, ConfigurationError) as e:
                 error_msg = str(e)
-                logger.error(f"Validation/Config error in Discord handler: {error_msg}")
+                logger.warning(f"Configuration issue in Discord handler: {error_msg}")
                 if "Отсутствует активное соединение" in error_msg:
                     await message.channel.send("❌ Отсутствует активное соединение с LLM API")
                 else:
