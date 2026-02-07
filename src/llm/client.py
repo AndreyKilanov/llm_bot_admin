@@ -1,4 +1,8 @@
+import asyncio
+import logging
 import httpx
+
+logger = logging.getLogger(__name__)
 
 
 class LLMClient:
@@ -16,8 +20,8 @@ class LLMClient:
             model: str,
             base_url: str,
     ) -> str:
-        """Выполняет запрос к LLM API.
-
+        """Выполняет запрос к LLM API с повторными попытками.
+        
         Args:
             messages: Список сообщений в формате [{'role': '...', 'content': '...'}]
             api_key: Ключ API
@@ -36,6 +40,7 @@ class LLMClient:
 
         if not base_url:
             raise ValueError("base_url is required")
+
         url = base_url.rstrip("/")
         if url.endswith("/chat/completions"):
             pass
@@ -59,27 +64,42 @@ class LLMClient:
             "X-Title": "LLM Bot",
         }
 
-        async with httpx.AsyncClient(timeout=60.0) as client:
-            resp = await client.post(url, json=payload, headers=headers)
-
-        if resp.status_code != 200:
+        last_exception = None
+        for attempt in range(1, 4):
             try:
-                error_data = resp.json()
-                error_msg = error_data.get("error", {}).get("message", resp.text)
-            except Exception:
-                error_msg = resp.text
-            raise ValueError(f"LLM API Error {resp.status_code}: {error_msg}")
+                async with httpx.AsyncClient(timeout=60.0) as client:
+                    resp = await client.post(url, json=payload, headers=headers)
 
-        data = resp.json()
-        choices = data.get("choices")
-        if not choices:
-            raise ValueError("API returned no choices")
+                if resp.status_code != 200:
+                    try:
+                        error_data = resp.json()
+                        error_msg = error_data.get("error", {}).get("message", resp.text)
+                    except Exception:
+                        error_msg = resp.text
+                    raise ValueError(f"LLM API Error {resp.status_code}: {error_msg}")
 
-        content = choices[0].get("message", {}).get("content")
-        if content is None:
-            raise ValueError("API returned empty content")
+                data = resp.json()
+                choices = data.get("choices")
+                if not choices:
+                    raise ValueError("API returned no choices")
 
-        return content.strip() if isinstance(content, str) else str(content)
+                content = choices[0].get("message", {}).get("content")
+                if content is None:
+                    raise ValueError("API returned empty content")
+
+                return content.strip() if isinstance(content, str) else str(content)
+
+            except (httpx.ConnectError, httpx.ReadTimeout, httpx.WriteTimeout, httpx.ConnectTimeout, httpx.PoolTimeout) as e:
+                last_exception = e
+                logger.warning(f"Попытка {attempt}/3 подключения к LLM не удалась: {e}")
+                if attempt < 3:
+                    await asyncio.sleep(1)
+            except ValueError:
+                raise
+            except Exception as e:
+                raise ValueError(f"Unexpected error: {e}")
+
+        raise ValueError(f"Не удалось подключиться к LLM API после 3 попыток. Ошибка: {last_exception}")
 
     @classmethod
     async def validate_key(cls, api_key: str, base_url: str) -> bool:
@@ -99,6 +119,7 @@ class LLMClient:
         """Внутренний метод для универсальной проверки ключа через эндпоинт /models."""
         if not base_url:
             return False
+
         url = base_url.rstrip("/")
 
         if url.endswith("/chat/completions"):
