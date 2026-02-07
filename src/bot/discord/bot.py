@@ -144,6 +144,10 @@ class DiscordBot:
 
     async def _handle_playmusic(self, ctx: commands.Context, query: str):
         """Обработка команды /playmusic."""
+        if not await SettingsService.is_discord_music_enabled():
+            await ctx.send("❌ Музыкальный плеер отключен в настройках администратора.")
+            return
+
         if not ctx.author.voice:
             await ctx.send("❌ Вы должны находиться в голосовом канале!")
             return
@@ -191,6 +195,10 @@ class DiscordBot:
 
     async def _handle_skip(self, ctx: commands.Context):
         """Обработка команды /skip."""
+        if not await SettingsService.is_discord_music_enabled():
+            await ctx.send("❌ Музыкальный плеер отключен.")
+            return
+
         player = self.music_players.get(ctx.guild.id)
 
         if not player or not player.is_playing:
@@ -204,6 +212,10 @@ class DiscordBot:
 
     async def _handle_previous(self, ctx: commands.Context):
         """Обработка команды /previous."""
+        if not await SettingsService.is_discord_music_enabled():
+            await ctx.send("❌ Музыкальный плеер отключен.")
+            return
+
         player = self.music_players.get(ctx.guild.id)
 
         if not player or not player.is_playing:
@@ -217,6 +229,10 @@ class DiscordBot:
 
     async def _handle_pause(self, ctx: commands.Context):
         """Обработка команды /pause."""
+        if not await SettingsService.is_discord_music_enabled():
+            await ctx.send("❌ Музыкальный плеер отключен.")
+            return
+
         player = self.music_players.get(ctx.guild.id)
 
         if not player or not player.is_playing:
@@ -230,6 +246,10 @@ class DiscordBot:
 
     async def _handle_resume(self, ctx: commands.Context):
         """Обработка команды /resume."""
+        if not await SettingsService.is_discord_music_enabled():
+            await ctx.send("❌ Музыкальный плеер отключен.")
+            return
+
         player = self.music_players.get(ctx.guild.id)
 
         if not player:
@@ -243,6 +263,10 @@ class DiscordBot:
 
     async def _handle_stop(self, ctx: commands.Context):
         """Обработка команды /stop."""
+        if not await SettingsService.is_discord_music_enabled():
+            await ctx.send("❌ Музыкальный плеер отключен.")
+            return
+
         player = self.music_players.get(ctx.guild.id)
 
         if not player:
@@ -256,6 +280,10 @@ class DiscordBot:
 
     async def _handle_queue(self, ctx: commands.Context):
         """Обработка команды /queue."""
+        if not await SettingsService.is_discord_music_enabled():
+            await ctx.send("❌ Музыкальный плеер отключен.")
+            return
+
         player = self.music_players.get(ctx.guild.id)
 
         if not player or not player.queue:
@@ -285,6 +313,10 @@ class DiscordBot:
 
     async def _handle_nowplaying(self, ctx: commands.Context):
         """Обработка команды /nowplaying."""
+        if not await SettingsService.is_discord_music_enabled():
+            await ctx.send("❌ Музыкальный плеер отключен.")
+            return
+
         player = self.music_players.get(ctx.guild.id)
 
         if not player or not player.current_track:
