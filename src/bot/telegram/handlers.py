@@ -186,8 +186,15 @@ async def on_text(message: Message) -> None:
 
     try:
         reply = await LLMService.generate_response(messages=last_messages)
+    except ValueError as e:
+        error_msg = str(e)
+        if "Отсутствует активное соединение" in error_msg:
+            await message.answer("❌ Отсутствует активное соединение с LLM API")
+        else:
+            await message.answer(f"❌ Ошибка конфигурации: {error_msg}")
+        return
     except Exception as e:
-        await message.answer(f"Ошибка при запросе к модели: {e}")
+        await message.answer("❌ Отсутствует активное соединение с LLM API или сервис недоступен")
         return
 
     await HistoryService.add_message(
