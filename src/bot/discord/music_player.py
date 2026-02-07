@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import time
+from enum import Enum
 from typing import Optional
 
 import discord
@@ -8,6 +9,13 @@ import discord
 from src.services import music_service
 
 logger = logging.getLogger("discord.music_player")
+
+
+class LoopMode(Enum):
+    """Режимы зацикливания воспроизведения."""
+    NONE = "none"           # Без зацикливания
+    TRACK = "track"         # Зацикливание текущего трека
+    PLAYLIST = "playlist"   # Зацикливание плейлиста
 
 
 class MusicPlayer:
@@ -44,6 +52,7 @@ class MusicPlayer:
         self.pause_time: Optional[float] = None
         self.paused_duration: float = 0.0
         self._preload_task: Optional[asyncio.Task] = None
+        self.loop_mode: LoopMode = LoopMode.NONE
 
         logger.info(f"MusicPlayer создан для сервера {guild_id}")
 
@@ -163,9 +172,19 @@ class MusicPlayer:
             True если трек начал воспроизводиться, False если очередь пуста
         """
         async with self._play_lock:
+            # Если включен режим повтора трека, перезапускаем текущий
+            if self.loop_mode == LoopMode.TRACK:
+                logger.info("Зацикливание текущего трека: перезапуск")
+                return await self._play_track(self.current_track)
+
+            # Если достигнут конец очереди, но включено зацикливание плейлиста
             if self.current_index + 1 >= len(self.queue):
-                logger.info("Достигнут конец очереди")
-                return False
+                if self.loop_mode == LoopMode.PLAYLIST:
+                    logger.info("Зацикливание плейлиста: возврат к началу")
+                    self.current_index = -1
+                else:
+                    logger.info("Достигнут конец очереди")
+                    return False
 
             self.current_index += 1
             return await self._play_track(self.queue[self.current_index])
@@ -311,13 +330,20 @@ class MusicPlayer:
             self._manual_skip = False
             return
 
-        if self.current_index + 1 < len(self.queue):
-            logger.info("Автоматическое переключение на следующий трек")
-            await self.play_next()
-        else:
+
+        # Для режима TRACK повторяем текущий трек (только при авто-переключении)
+        if self.loop_mode == LoopMode.TRACK:
+            logger.info("Зацикливание текущего трека (авто-повтор)")
+            await self._play_track(self.current_track)
+            return
+
+        # Переход к следующему треку (логику зацикливания плейлиста берет на себя play_next)
+        if not await self.play_next():
             logger.info("Очередь завершена")
             self.current_track = None
             await self._schedule_disconnect()
+
+
 
     def pause(self) -> bool:
         """
@@ -467,6 +493,25 @@ class MusicPlayer:
             "is_playing": self.is_playing,
             "is_paused": self.is_paused,
         }
+
+    def cycle_loop_mode(self) -> LoopMode:
+        """
+        Циклическое переключение режима зацикливания:
+        NONE -> TRACK -> PLAYLIST -> NONE
+        
+        Returns:
+            Новый режим зацикливания
+        """
+        if self.loop_mode == LoopMode.NONE:
+            self.loop_mode = LoopMode.TRACK
+        elif self.loop_mode == LoopMode.TRACK:
+            self.loop_mode = LoopMode.PLAYLIST
+        else:
+            self.loop_mode = LoopMode.NONE
+            
+        logger.info(f"Режим зацикливания изменен на: {self.loop_mode.value}")
+        return self.loop_mode
+
 
     def set_text_channel(self, channel):
         """Установить текстовый канал для отправки сообщений проигрывателя."""

@@ -1,7 +1,3 @@
-<div align="center">
-  <img src="src/web/static/images/bot.png" width="160" alt="AI Multi-Platform Bot Logo">
-</div>
-
 # 🤖 AI Multi-Platform Bot & Admin Panel
 
 ![Python](https://img.shields.io/badge/Python-3.11+-blue?style=for-the-badge&logo=python)
