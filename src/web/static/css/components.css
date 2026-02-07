@@ -52,7 +52,6 @@ h3 {
 }
 
 .stat-card:hover {
-    transform: translateY(-4px);
     box-shadow: 0 12px 20px -10px rgba(0, 0, 0, 0.2);
 }
 
@@ -89,6 +88,17 @@ h3 {
 .btn-danger:hover {
     background: var(--danger);
     color: white;
+}
+
+.btn-secondary {
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+}
+
+.btn-secondary:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: var(--text-secondary);
 }
 
 .btn-icon,
@@ -642,4 +652,83 @@ input[type=number] {
 .whitelist-item:hover {
     background: rgba(255, 255, 255, 0.04);
     border-color: var(--border-color);
+}
+
+/* Prompt Card Enhancements */
+.prompt-card {
+    background: rgba(255, 255, 255, 0.03);
+    backdrop-filter: blur(10px);
+    border: 1px solid var(--border-color);
+    border-radius: 16px;
+    padding: 1.25rem;
+    margin-bottom: 1rem;
+    position: relative;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.prompt-card:hover {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.1);
+}
+
+.prompt-card.active {
+    border-color: var(--accent-primary);
+    box-shadow: 0 0 20px rgba(107, 70, 193, 0.15);
+    background: rgba(107, 70, 193, 0.03);
+}
+
+.prompt-status-badge {
+    font-size: 0.75rem;
+    font-weight: 700;
+    padding: 0.25rem 0.6rem;
+    border-radius: 20px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+.status-active {
+    background: rgba(16, 185, 129, 0.15);
+    color: var(--success);
+    border: 1px solid rgba(16, 185, 129, 0.2);
+}
+
+.prompt-preview {
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    background: rgba(0, 0, 0, 0.2);
+    padding: 1rem;
+    border-radius: 12px;
+    margin: 1rem 0;
+    max-height: 150px;
+    overflow-y: auto;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    white-space: pre-wrap;
+    line-height: 1.5;
+}
+
+.prompt-preview::-webkit-scrollbar {
+    width: 4px;
+}
+
+.prompt-preview::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+    border-radius: 10px;
+}
+
+.prompt-actions-bottom {
+    display: flex;
+    justify-content: flex-start;
+    gap: 0.75rem;
+    margin-top: auto;
+}
+
+.btn-status-toggle {
+    width: 180px;
+    justify-content: center;
+    height: 42px;
+    font-size: 0.85rem;
 }
