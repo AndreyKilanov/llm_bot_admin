@@ -1,6 +1,6 @@
 import asyncio
 import logging
-from typing import Optional
+from typing import Optional, Union
 
 import discord
 from discord.ext import commands
@@ -266,16 +266,30 @@ class MusicPlayerView(discord.ui.View):
             await interaction.followup.send("❌ Нет активного трека.", ephemeral=True)
             return
         
+        for item in self.children:
+            if isinstance(item, discord.ui.Button) and item.custom_id in ["rewind", "forward"]:
+                item.disabled = True
+        
+        try:
+            await self.message.edit(view=self)
+        except Exception:
+            pass
+        
         seek_time = await SettingsService.get_discord_seek_time()
         try:
-            if await self.player.seek_relative(-seek_time):
-                await self._update_player_message()
-            else:
+            if not await self.player.seek_relative(-seek_time):
                 await interaction.followup.send(f"❌ Не удалось перемотать назад на {seek_time}с.", ephemeral=True)
         except discord.errors.NotFound:
             logger.warning("Взаимодействие истекло или сообщение удалено")
         except Exception as e:
             logger.error(f"Ошибка в кнопке перемотки назад: {e}")
+            await interaction.followup.send(f"❌ Ошибка перемотки: {e}", ephemeral=True)
+        finally:
+            # Разблокируем кнопки
+            for item in self.children:
+                if isinstance(item, discord.ui.Button) and item.custom_id in ["rewind", "forward"]:
+                    item.disabled = False
+            await self._update_player_message()
 
     @discord.ui.button(emoji="⏩", style=discord.ButtonStyle.secondary, custom_id="forward", row=1)
     async def forward_button(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -286,16 +300,29 @@ class MusicPlayerView(discord.ui.View):
             await interaction.followup.send("❌ Нет активного трека.", ephemeral=True)
             return
         
+        for item in self.children:
+            if isinstance(item, discord.ui.Button) and item.custom_id in ["rewind", "forward"]:
+                item.disabled = True
+        
+        try:
+            await self.message.edit(view=self)
+        except Exception:
+            pass
+        
         seek_time = await SettingsService.get_discord_seek_time()
         try:
-            if await self.player.seek_relative(seek_time):
-                await self._update_player_message()
-            else:
+            if not await self.player.seek_relative(seek_time):
                 await interaction.followup.send(f"❌ Не удалось перемотать вперед на {seek_time}с.", ephemeral=True)
         except discord.errors.NotFound:
             logger.warning("Взаимодействие истекло или сообщение удалено")
         except Exception as e:
             logger.error(f"Ошибка в кнопке перемотки вперед: {e}")
+            await interaction.followup.send(f"❌ Ошибка перемотки: {e}", ephemeral=True)
+        finally:
+            for item in self.children:
+                if isinstance(item, discord.ui.Button) and item.custom_id in ["rewind", "forward"]:
+                    item.disabled = False
+            await self._update_player_message()
 
     @discord.ui.button(emoji="📋", style=discord.ButtonStyle.secondary, custom_id="queue", row=1)
     async def queue_button(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -328,48 +355,35 @@ class MusicPlayerView(discord.ui.View):
 
         await interaction.followup.send(embed=embed, ephemeral=True)
 
-    @discord.ui.button(emoji="🔂", style=discord.ButtonStyle.secondary, custom_id="loop_track", row=2)
-    async def loop_track_button(self, interaction: discord.Interaction, button: discord.ui.Button):
-        """Кнопка зацикливания текущего трека."""
+
+    @discord.ui.button(emoji="🚫", style=discord.ButtonStyle.secondary, custom_id="loop_mode", row=1)
+    async def loop_mode_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        """Кнопка циклического переключения режима зацикливания."""
         await interaction.response.defer()
         
-        mode = self.player.toggle_loop_track()
+        mode = self.player.cycle_loop_mode()
         
-        # Обновить стиль кнопки
-        button.style = discord.ButtonStyle.success if mode == LoopMode.TRACK else discord.ButtonStyle.secondary
-        
-        # Если включили зацикливание трека, отключить зацикливание плейлиста
-        if mode == LoopMode.TRACK:
-            for item in self.children:
-                if isinstance(item, discord.ui.Button) and item.custom_id == "loop_playlist":
-                    item.style = discord.ButtonStyle.secondary
-        
+        # Обновление стиля и эмодзи происходит в _update_player_message
         await self._update_player_message()
         
-        status = "включено" if mode == LoopMode.TRACK else "выключено"
-        await interaction.followup.send(f"🔂 Зацикливание трека {status}.", ephemeral=True)
+        status_map = {
+            LoopMode.NONE: "выключено",
+            LoopMode.TRACK: "трека",
+            LoopMode.PLAYLIST: "плейлиста"
+        }
+        
+        await interaction.followup.send(f"🔄 Режим зацикливания: {status_map.get(mode, 'неизвестно')}.", ephemeral=True)
 
-    @discord.ui.button(emoji="🔁", style=discord.ButtonStyle.secondary, custom_id="loop_playlist", row=2)
-    async def loop_playlist_button(self, interaction: discord.Interaction, button: discord.ui.Button):
-        """Кнопка зацикливания плейлиста."""
-        await interaction.response.defer()
-        
-        mode = self.player.toggle_loop_playlist()
-        
-        # Обновить стиль кнопки
-        button.style = discord.ButtonStyle.success if mode == LoopMode.PLAYLIST else discord.ButtonStyle.secondary
-        
-        # Если включили зацикливание плейлиста, отключить зацикливание трека
-        if mode == LoopMode.PLAYLIST:
-            for item in self.children:
-                if isinstance(item, discord.ui.Button) and item.custom_id == "loop_track":
-                    item.style = discord.ButtonStyle.secondary
-        
-        await self._update_player_message()
-        
-        status = "включено" if mode == LoopMode.PLAYLIST else "выключено"
-        await interaction.followup.send(f"🔁 Зацикливание плейлиста {status}.", ephemeral=True)
 
+
+
+    def _get_emoji(self, name: str, default: str) -> Union[str, discord.Emoji]:
+        """Получение кастомного эмодзи по имени или возврат по умолчанию."""
+        if self.message and self.message.guild:
+            emoji = discord.utils.get(self.message.guild.emojis, name=name)
+            if emoji:
+                return emoji
+        return default
 
     async def _update_player_message(self):
         """Обновление сообщения проигрывателя."""
@@ -382,10 +396,17 @@ class MusicPlayerView(discord.ui.View):
             if isinstance(item, discord.ui.Button):
                 if item.custom_id == "pause_resume":
                     item.emoji = "▶️" if self.player.is_paused else "⏸️"
-                elif item.custom_id == "loop_track":
-                    item.style = discord.ButtonStyle.success if self.player.loop_mode == LoopMode.TRACK else discord.ButtonStyle.secondary
-                elif item.custom_id == "loop_playlist":
-                    item.style = discord.ButtonStyle.success if self.player.loop_mode == LoopMode.PLAYLIST else discord.ButtonStyle.secondary
+                elif item.custom_id == "loop_mode":
+                    if self.player.loop_mode == LoopMode.NONE:
+                        item.emoji = self._get_emoji("norepeat", "🚫")
+                        item.style = discord.ButtonStyle.secondary
+                    elif self.player.loop_mode == LoopMode.TRACK:
+                        item.emoji = self._get_emoji("repeat1", "🔂")
+                        item.style = discord.ButtonStyle.success
+                    elif self.player.loop_mode == LoopMode.PLAYLIST:
+                        emoji = self._get_emoji("repeat-1", None) or self._get_emoji("repeat_1", "🔁")
+                        item.emoji = emoji
+                        item.style = discord.ButtonStyle.success
 
         
         try:
@@ -446,9 +467,11 @@ class MusicPlayerView(discord.ui.View):
 
         # Отображение режима зацикливания
         if self.player.loop_mode == LoopMode.TRACK:
-            embed.add_field(name="🔂 Режим", value="Зацикливание трека", inline=True)
+            emoji = self._get_emoji("repeat1", "🔂")
+            embed.add_field(name=f"{emoji} Режим", value="Зацикливание трека", inline=True)
         elif self.player.loop_mode == LoopMode.PLAYLIST:
-            embed.add_field(name="🔁 Режим", value="Зацикливание плейлиста", inline=True)
+            emoji = self._get_emoji("repeat-1", None) or self._get_emoji("repeat_1", "🔁")
+            embed.add_field(name=f"{emoji} Режим", value="Зацикливание плейлиста", inline=True)
 
         embed.set_footer(text=f"♫ Трек {queue_info['current_index'] + 1} из {queue_info['total']}")
 
