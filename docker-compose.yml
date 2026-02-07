@@ -16,6 +16,8 @@ services:
     dns:
       - 8.8.8.8
       - 1.1.1.1
+    volumes:
+      - .:/app # dev only
     networks:
       - bot_network
     restart: unless-stopped
@@ -49,6 +51,8 @@ services:
       - "${NGINX_PORT:-80}:80"
     volumes:
       - ./nginx/default.conf.template:/etc/nginx/templates/default.conf.template:ro
+      - ./src/web/static/errors:/usr/share/nginx/html/errors:ro
+      - ./src/web/static/images:/usr/share/nginx/html/images:ro
     depends_on:
       - app
     networks:
