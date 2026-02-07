@@ -36,7 +36,6 @@ class MusicPlayer:
         self.is_paused: bool = False
         self._play_lock = asyncio.Lock()
         self._disconnect_task: Optional[asyncio.Task] = None
-        self._voice_channel: Optional[discord.VoiceChannel] = None
         self._manual_skip: bool = False
         self.player_view = None
         self.player_message = None
@@ -44,6 +43,7 @@ class MusicPlayer:
         self.start_time: Optional[float] = None
         self.pause_time: Optional[float] = None
         self.paused_duration: float = 0.0
+        self._preload_task: Optional[asyncio.Task] = None
 
         logger.info(f"MusicPlayer создан для сервера {guild_id}")
 
@@ -90,19 +90,45 @@ class MusicPlayer:
             logger.error("Гильдия не найдена")
             return False
 
-        if guild.voice_client and guild.voice_client.is_connected():
-            if guild.voice_client.channel.id == channel.id:
-                logger.info(f"Уже подключен к каналу {channel.name}")
-                return True
-
-            await guild.voice_client.move_to(channel)
-            logger.info(f"Переключен на канал {channel.name}")
+        vc = guild.voice_client
+        
+        # Если мы уже в этом канале и подключены - всё отлично
+        if vc and vc.channel and vc.channel.id == channel.id and vc.is_connected():
+            logger.info(f"Уже подключен к каналу {channel.name}")
             return True
+
+        # Если мы в другом канале или не подключены - перемещаемся или отключаемся
+        if vc:
+            try:
+                if vc.channel and vc.channel.id != channel.id:
+                    logger.info(f"Перемещение из {vc.channel.name} в {channel.name}")
+                    await vc.move_to(channel)
+                    return True
+                elif not vc.is_connected():
+                    logger.warning("VoiceClient существует, но не подключен. Принудительное отключение перед входом.")
+                    await vc.disconnect(force=True)
+            except Exception as e:
+                logger.error(f"Ошибка при подготовке VoiceClient: {e}")
+                try:
+                    await vc.disconnect(force=True)
+                except:
+                    pass
 
         try:
-            await channel.connect()
+            logger.info(f"Подключение к каналу {channel.name}...")
+            # Используем небольшой таймаут и включаем переподключение
+            await channel.connect(timeout=20.0, reconnect=True)
             logger.info(f"Подключен к каналу {channel.name}")
             return True
+        except discord.ClientException as e:
+            if "Already connected" in str(e):
+                logger.info("Уже подключен к голосовому каналу (обнаружено через исключение)")
+                return True
+            logger.error(f"ClientException при подключении к голосовому каналу: {e}")
+            return False
+        except asyncio.TimeoutError:
+            logger.error(f"Таймаут подключения к голосовому каналу {channel.name}")
+            return False
         except Exception as e:
             logger.error(f"Ошибка подключения к голосовому каналу: {e}", exc_info=True)
             return False
@@ -237,6 +263,12 @@ class MusicPlayer:
 
             voice_client.play(audio_source, after=after_playing)
             logger.info(f"Воспроизведение начато: {track['title']}")
+            
+            # Предварительная загрузка следующего трека
+            if self._preload_task:
+                self._preload_task.cancel()
+            self._preload_task = asyncio.create_task(self._preload_next())
+            
             await self._update_player_ui()
             
             return True
@@ -258,6 +290,18 @@ class MusicPlayer:
                 logger.warning("Больше нет доступных треков в очереди")
                 self.is_playing = False
                 return False
+
+    async def _preload_next(self):
+        """Предварительная загрузка метаданных и прямого URL следующего трека."""
+        try:
+            if self.current_index + 1 < len(self.queue):
+                next_track = self.queue[self.current_index + 1]
+                logger.info(f"Предварительная загрузка для следующего трека: {next_track['title']}")
+                # Это наполнит все кэши в MusicService (info и url)
+                await music_service.get_track_info(next_track["url"])
+                logger.info(f"Предварительная загрузка завершена для: {next_track['title']}")
+        except Exception as e:
+            logger.error(f"Ошибка при предварительной загрузке: {e}")
 
     async def _auto_play_next(self):
         """Автоматическое воспроизведение следующего трека после завершения текущего."""
@@ -345,6 +389,64 @@ class MusicPlayer:
 
         position = min(int(elapsed), duration)
         return (position, duration)
+
+
+    async def seek_relative(self, seconds: int) -> bool:
+        """
+        Перемотка трека на указанное количество секунд с перезапуском аудио-источника.
+        """
+        if not self.current_track or not self.start_time:
+            logger.warning("Нет активного трека для перемотки")
+            return False
+        
+        async with self._play_lock:
+            current_position, duration = self.get_playback_position()
+            new_position = max(0, min(current_position + seconds, duration))
+            time_diff = new_position - current_position
+            
+            if time_diff == 0:
+                logger.info("Перемотка не требуется")
+                return False
+            
+            try:
+                logger.info(f"Подготовка потока для перемотки на {new_position}с...")
+                new_source = await music_service.get_audio_source(self.current_track["url"], start_time=new_position)
+                
+                if not new_source:
+                    logger.error("Не удалось получить аудио-источник для перемотки")
+                    return False
+                
+                vc = self.voice_client
+                if vc and (vc.is_playing() or vc.is_paused()):
+                    self._manual_skip = True
+                    vc.stop()
+                    await asyncio.sleep(0.1)
+                    now = time.time()
+                    self.start_time = now - new_position
+                    self.paused_duration = 0
+                    if self.is_paused:
+                        self.pause_time = now
+                    
+                    def after_playing(error):
+                        if error:
+                            logger.error(f"Ошибка после перемотки: {error}")
+                        asyncio.run_coroutine_threadsafe(self._auto_play_next(), self.bot.loop)
+                    
+                    vc.play(new_source, after=after_playing)
+                    self.is_playing = True
+                    if self.is_paused:
+                        vc.pause()
+                    
+                    logger.info(f"Перемотка успешно выполнена на {int(new_position)}с")
+
+                    await self._update_player_ui()
+                    return True
+            except Exception as e:
+                logger.error(f"Ошибка при выполнении перемотки: {e}", exc_info=True)
+                return False
+        
+        return False
+
 
     def get_queue_info(self) -> dict:
         """
