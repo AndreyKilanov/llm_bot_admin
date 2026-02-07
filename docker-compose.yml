@@ -17,7 +17,7 @@ services:
       - 8.8.8.8
       - 1.1.1.1
     volumes:
-      - .:/app # dev only
+      # - .:/app # dev only
     networks:
       - bot_network
     restart: unless-stopped
