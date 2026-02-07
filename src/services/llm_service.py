@@ -1,5 +1,6 @@
 from config import settings
 from src.database.models import LLMConnection, LLMPrompt
+from src.exceptions import ConfigurationError
 from src.llm import LLMClient
 from src.logger import log_function
 
@@ -290,6 +291,19 @@ class LLMService:
         return True
 
     @staticmethod
+    async def deactivate_prompt(prompt_id: int) -> bool:
+        """Деактивирует указанный промпт.
+
+        Args:
+            prompt_id: ID промпта, который нужно деактивировать.
+
+        Returns:
+            True, если промпт найден и успешно деактивирован; иначе False.
+        """
+        updated_count = await LLMPrompt.filter(id=prompt_id).update(is_active=False)
+        return updated_count > 0
+
+    @staticmethod
     async def delete_prompt(prompt_id: int) -> bool:
         """Удаляет промпт по его ID.
 
@@ -364,14 +378,13 @@ class LLMService:
         active_conn = await LLMService.get_active_connection()
 
         if not active_conn:
-            raise ValueError("Отсутствует активное соединение с LLM API")
+            raise ConfigurationError("Отсутствует активное соединение с LLM API")
 
         api_key = active_conn.api_key
         model = active_conn.model_name
         base_url = active_conn.base_url
         provider = active_conn.provider
-
-        # Если base_url не указан, пытаемся взять дефолтный для провайдера
+        
         if not base_url:
             provider_info = LLMService.PROVIDER_DEFAULT_URLS.get(provider.lower())
             if isinstance(provider_info, dict):
@@ -380,7 +393,7 @@ class LLMService:
                 base_url = provider_info
 
         if not base_url:
-            raise ValueError(f"Base URL not found for provider '{provider}'")
+            raise ConfigurationError(f"Base URL not found for provider '{provider}'")
 
         full_messages = [{"role": "system", "content": system_prompt}] + messages
 
