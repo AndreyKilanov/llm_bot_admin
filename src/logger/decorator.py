@@ -2,6 +2,8 @@ import functools
 import logging
 import time
 from typing import Any, Callable
+from src.exceptions import BotBaseException
+
 
 def log_function(func: Callable) -> Callable:
     """Декоратор для логирования вызова функции, её аргументов и результата."""
@@ -19,9 +21,13 @@ def log_function(func: Callable) -> Callable:
             duration = time.perf_counter() - start_time
             logger.info("Успешное выполнение %s | Время: %.4fs", func_name, duration)
             return result
+        except BotBaseException as e:
+            duration = time.perf_counter() - start_time
+            logger.warning("Ожидаемая ошибка в %s | Сообщение: %s | Время: %.4fs", func_name, e, duration)
+            raise
         except Exception as e:
             duration = time.perf_counter() - start_time
-            logger.error("Ошибка в %s | Исключение: %s | Время: %.4fs", func_name, e, duration, exc_info=True)
+            logger.error("Критическая ошибка в %s | Исключение: %s | Время: %.4fs", func_name, e, duration, exc_info=True)
             raise
 
     @functools.wraps(func)
@@ -36,9 +42,13 @@ def log_function(func: Callable) -> Callable:
             duration = time.perf_counter() - start_time
             logger.info("Успешное выполнение %s | Время: %.4fs", func_name, duration)
             return result
+        except BotBaseException as e:
+            duration = time.perf_counter() - start_time
+            logger.warning("Ожидаемая ошибка в %s | Сообщение: %s | Время: %.4fs", func_name, e, duration)
+            raise
         except Exception as e:
             duration = time.perf_counter() - start_time
-            logger.error("Ошибка в %s | Исключение: %s | Время: %.4fs", func_name, e, duration, exc_info=True)
+            logger.error("Критическая ошибка в %s | Исключение: %s | Время: %.4fs", func_name, e, duration, exc_info=True)
             raise
 
     if (
@@ -48,7 +58,6 @@ def log_function(func: Callable) -> Callable:
     ):
         return async_wrapper
     
-    # Simple check for async functions created via async def
     if hasattr(func, "_is_coroutine") or (hasattr(func, "__code__") and func.__code__.co_flags & 0x80):
          return async_wrapper
          
