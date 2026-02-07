@@ -6,6 +6,8 @@ import discord
 from discord.ext import commands
 
 from src.services import music_service, SettingsService
+from src.bot.discord.music_player import LoopMode
+
 
 logger = logging.getLogger("discord.views")
 
@@ -326,6 +328,49 @@ class MusicPlayerView(discord.ui.View):
 
         await interaction.followup.send(embed=embed, ephemeral=True)
 
+    @discord.ui.button(emoji="🔂", style=discord.ButtonStyle.secondary, custom_id="loop_track", row=2)
+    async def loop_track_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        """Кнопка зацикливания текущего трека."""
+        await interaction.response.defer()
+        
+        mode = self.player.toggle_loop_track()
+        
+        # Обновить стиль кнопки
+        button.style = discord.ButtonStyle.success if mode == LoopMode.TRACK else discord.ButtonStyle.secondary
+        
+        # Если включили зацикливание трека, отключить зацикливание плейлиста
+        if mode == LoopMode.TRACK:
+            for item in self.children:
+                if isinstance(item, discord.ui.Button) and item.custom_id == "loop_playlist":
+                    item.style = discord.ButtonStyle.secondary
+        
+        await self._update_player_message()
+        
+        status = "включено" if mode == LoopMode.TRACK else "выключено"
+        await interaction.followup.send(f"🔂 Зацикливание трека {status}.", ephemeral=True)
+
+    @discord.ui.button(emoji="🔁", style=discord.ButtonStyle.secondary, custom_id="loop_playlist", row=2)
+    async def loop_playlist_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        """Кнопка зацикливания плейлиста."""
+        await interaction.response.defer()
+        
+        mode = self.player.toggle_loop_playlist()
+        
+        # Обновить стиль кнопки
+        button.style = discord.ButtonStyle.success if mode == LoopMode.PLAYLIST else discord.ButtonStyle.secondary
+        
+        # Если включили зацикливание плейлиста, отключить зацикливание трека
+        if mode == LoopMode.PLAYLIST:
+            for item in self.children:
+                if isinstance(item, discord.ui.Button) and item.custom_id == "loop_track":
+                    item.style = discord.ButtonStyle.secondary
+        
+        await self._update_player_message()
+        
+        status = "включено" if mode == LoopMode.PLAYLIST else "выключено"
+        await interaction.followup.send(f"🔁 Зацикливание плейлиста {status}.", ephemeral=True)
+
+
     async def _update_player_message(self):
         """Обновление сообщения проигрывателя."""
         if not self.message or not self.player.current_track:
@@ -334,8 +379,14 @@ class MusicPlayerView(discord.ui.View):
         embed = self._create_player_embed()
         
         for item in self.children:
-            if isinstance(item, discord.ui.Button) and item.custom_id == "pause_resume":
-                item.emoji = "▶️" if self.player.is_paused else "⏸️"
+            if isinstance(item, discord.ui.Button):
+                if item.custom_id == "pause_resume":
+                    item.emoji = "▶️" if self.player.is_paused else "⏸️"
+                elif item.custom_id == "loop_track":
+                    item.style = discord.ButtonStyle.success if self.player.loop_mode == LoopMode.TRACK else discord.ButtonStyle.secondary
+                elif item.custom_id == "loop_playlist":
+                    item.style = discord.ButtonStyle.success if self.player.loop_mode == LoopMode.PLAYLIST else discord.ButtonStyle.secondary
+
         
         try:
             await self.message.edit(embed=embed, view=self)
@@ -392,6 +443,12 @@ class MusicPlayerView(discord.ui.View):
             total_str = music_service.format_duration(total_duration)
             progress_text = f"`{position_str}` {bar} `{total_str}`"
             embed.add_field(name="⏳ Прогресс", value=progress_text, inline=False)
+
+        # Отображение режима зацикливания
+        if self.player.loop_mode == LoopMode.TRACK:
+            embed.add_field(name="🔂 Режим", value="Зацикливание трека", inline=True)
+        elif self.player.loop_mode == LoopMode.PLAYLIST:
+            embed.add_field(name="🔁 Режим", value="Зацикливание плейлиста", inline=True)
 
         embed.set_footer(text=f"♫ Трек {queue_info['current_index'] + 1} из {queue_info['total']}")
 
