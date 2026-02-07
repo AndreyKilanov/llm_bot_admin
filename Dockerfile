@@ -8,6 +8,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ffmpeg \
     libopus0 \
     libsodium23 \
+    dos2unix \
     && rm -rf /var/lib/apt/lists/*
 
 RUN pip install --no-cache-dir -r requirements.txt
@@ -20,5 +21,5 @@ COPY scripts/ ./scripts/
 ENV PYTHONUNBUFFERED=1
 
 COPY start.sh .
-RUN chmod +x start.sh
-CMD ["bash", "start.sh"]
+RUN dos2unix start.sh && chmod +x start.sh
+CMD ["/bin/bash", "/app/start.sh"]
