@@ -143,7 +143,18 @@
                                 <span class="slider"></span>
                             </label>
                         </div>
-                        <div class="flex justify-between" style="align-items: center;">
+                        <div class="flex justify-between"
+                            style="align-items: center; margin-bottom: 1rem; border-top: 1px solid var(--border-color); padding-top: 1rem;">
+                            <div>
+                                <h3 style="margin:0 0 0.25rem 0">Время перемотки</h3>
+                                <p style="margin:0; color:var(--text-secondary); font-size:0.85rem">
+                                    Интервал перемотки (в секундах)
+                                </p>
+                            </div>
+                            <input type="number" id="setting_dc_seek" class="input-tiny" value="10" min="1" max="600">
+                        </div>
+                        <div class="flex justify-between"
+                            style="align-items: center; border-top: 1px solid var(--border-color); padding-top: 1rem;">
                             <div>
                                 <h3 style="margin:0 0 0.25rem 0">История сообщений</h3>
                                 <p style="margin:0; color:var(--text-secondary); font-size:0.85rem">
