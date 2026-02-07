@@ -74,6 +74,7 @@ async function loadGlobalSettings() {
         const dcEnabled = $('#setting_dc_enabled'); if (dcEnabled) dcEnabled.checked = res.discord.enabled;
         const dcDm = $('#setting_dc_dm'); if (dcDm) dcDm.checked = res.discord.allow_dms;
         const dcNew = $('#setting_dc_new_chats'); if (dcNew) dcNew.checked = res.discord.allow_new_chats;
+        const dcMusic = $('#setting_dc_music'); if (dcMusic) dcMusic.checked = res.discord.music_enabled;
         const dcMem = $('#setting_dc_memory'); if (dcMem) dcMem.value = res.discord.memory_limit;
 
     } catch (e) { }
@@ -91,6 +92,7 @@ async function saveSettings() {
             enabled: $('#setting_dc_enabled')?.checked || false,
             allow_dms: $('#setting_dc_dm')?.checked || false,
             allow_new_chats: $('#setting_dc_new_chats')?.checked || false,
+            music_enabled: $('#setting_dc_music')?.checked || false,
             memory_limit: parseInt($('#setting_dc_memory')?.value) || 10
         }
     };
