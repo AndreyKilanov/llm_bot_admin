@@ -12,6 +12,7 @@ from aiogram.types import Message
 
 from config import Settings
 from src.logger import log_function
+from src.exceptions import ConfigurationError
 from src.services import HistoryService, LLMService, SettingsService
 
 router = Router()
@@ -186,7 +187,7 @@ async def on_text(message: Message) -> None:
 
     try:
         reply = await LLMService.generate_response(messages=last_messages)
-    except ValueError as e:
+    except (ValueError, ConfigurationError) as e:
         error_msg = str(e)
         if "Отсутствует активное соединение" in error_msg:
             await message.answer("❌ Отсутствует активное соединение с LLM API")
