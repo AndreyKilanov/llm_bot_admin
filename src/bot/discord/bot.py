@@ -10,7 +10,7 @@ from config import settings
 from src.bot.discord.handlers import MessageHandler
 from src.bot.discord.music_player import MusicPlayer
 from src.bot.discord.views import MusicPlayerView, TrackSelectionView
-from src.services.music_service import music_service
+from src.services import music_service
 
 logger = logging.getLogger("discord.bot")
 
