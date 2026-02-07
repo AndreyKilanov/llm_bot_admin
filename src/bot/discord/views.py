@@ -5,7 +5,7 @@ from typing import Optional
 import discord
 from discord.ext import commands
 
-from src.services.music_service import music_service
+from src.services import music_service, SettingsService
 
 logger = logging.getLogger("discord.views")
 
@@ -181,8 +181,8 @@ class MusicPlayerView(discord.ui.View):
         async def update_loop():
             try:
                 while True:
-                    await asyncio.sleep(1)
-                    if self.player.is_playing and not self.player.is_paused:
+                    await asyncio.sleep(1.0)
+                    if self.player.is_playing:
                         await self._update_player_message()
             except asyncio.CancelledError:
                 pass
@@ -255,7 +255,47 @@ class MusicPlayerView(discord.ui.View):
             )
         self.stop()
 
-    @discord.ui.button(emoji="📋", style=discord.ButtonStyle.secondary, custom_id="queue")
+    @discord.ui.button(emoji="⏪", style=discord.ButtonStyle.secondary, custom_id="rewind", row=1)
+    async def rewind_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        """Кнопка перемотки назад на 10 секунд."""
+        await interaction.response.defer()
+        
+        if not self.player.current_track:
+            await interaction.followup.send("❌ Нет активного трека.", ephemeral=True)
+            return
+        
+        seek_time = await SettingsService.get_discord_seek_time()
+        try:
+            if await self.player.seek_relative(-seek_time):
+                await self._update_player_message()
+            else:
+                await interaction.followup.send(f"❌ Не удалось перемотать назад на {seek_time}с.", ephemeral=True)
+        except discord.errors.NotFound:
+            logger.warning("Взаимодействие истекло или сообщение удалено")
+        except Exception as e:
+            logger.error(f"Ошибка в кнопке перемотки назад: {e}")
+
+    @discord.ui.button(emoji="⏩", style=discord.ButtonStyle.secondary, custom_id="forward", row=1)
+    async def forward_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        """Кнопка перемотки вперед на 10 секунд."""
+        await interaction.response.defer()
+        
+        if not self.player.current_track:
+            await interaction.followup.send("❌ Нет активного трека.", ephemeral=True)
+            return
+        
+        seek_time = await SettingsService.get_discord_seek_time()
+        try:
+            if await self.player.seek_relative(seek_time):
+                await self._update_player_message()
+            else:
+                await interaction.followup.send(f"❌ Не удалось перемотать вперед на {seek_time}с.", ephemeral=True)
+        except discord.errors.NotFound:
+            logger.warning("Взаимодействие истекло или сообщение удалено")
+        except Exception as e:
+            logger.error(f"Ошибка в кнопке перемотки вперед: {e}")
+
+    @discord.ui.button(emoji="📋", style=discord.ButtonStyle.secondary, custom_id="queue", row=1)
     async def queue_button(self, interaction: discord.Interaction, button: discord.ui.Button):
         """Кнопка показа очереди."""
         await interaction.response.defer()
@@ -311,15 +351,20 @@ class MusicPlayerView(discord.ui.View):
         """
         track = self.player.current_track
         if not track:
-            return discord.Embed(title="🎵 Проигрыватель", description="Нет активного трека")
+            return discord.Embed(
+                title="🎵 Проигрыватель", 
+                description="Нет активного трека",
+                color=0x9B59B6
+            )
 
         duration = music_service.format_duration(track["duration"])
         queue_info = self.player.get_queue_info()
         position, total_duration = self.player.get_playback_position()
         embed = discord.Embed(
             title="🎵 Сейчас играет",
-            description=f"**{track['title']}**",
-            color=discord.Color.purple()
+            description=f"**[{track['title']}]({track['url']})**",
+            color=0x9B59B6,
+            url=track['url']
         )
         embed.add_field(name="Канал", value=track['uploader'], inline=True)
         embed.add_field(name="Длительность", value=duration, inline=True)
@@ -327,19 +372,27 @@ class MusicPlayerView(discord.ui.View):
         if track.get('thumbnail'):
             embed.set_thumbnail(url=track['thumbnail'])
 
-        status = "⏸️ Пауза" if self.player.is_paused else "▶️ Воспроизводится"
-        embed.add_field(name="Статус", value=status, inline=False)
-        
+        status_emoji = "⏸️" if self.player.is_paused else "▶️"
+        status_text = "На паузе" if self.player.is_paused else "Воспроизводится"
+        embed.add_field(name="Статус", value=f"{status_emoji} {status_text}", inline=False)
+
         if total_duration > 0:
             progress = position / total_duration
-            bar_length = 20
-            filled = int(bar_length * progress)
-            bar = "▬" * filled + "🔘" + "▬" * (bar_length - filled - 1)
+            bar_length = 15
+            filled = max(0, int(bar_length * progress))
+
+            if filled == 0:
+                bar = "○" + "─" * (bar_length - 1)
+            elif filled >= bar_length:
+                bar = "─" * (bar_length - 1) + "●"
+            else:
+                bar = "─" * (filled - 1) + "●" + "─" * (bar_length - filled)
+            
             position_str = music_service.format_duration(position)
             total_str = music_service.format_duration(total_duration)
             progress_text = f"`{position_str}` {bar} `{total_str}`"
-            embed.add_field(name="Прогресс", value=progress_text, inline=False)
+            embed.add_field(name="⏳ Прогресс", value=progress_text, inline=False)
 
-        embed.set_footer(text=f"Трек {queue_info['current_index'] + 1} из {queue_info['total']}")
+        embed.set_footer(text=f"♫ Трек {queue_info['current_index'] + 1} из {queue_info['total']}")
 
         return embed
