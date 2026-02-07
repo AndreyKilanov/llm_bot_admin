@@ -7,4 +7,6 @@ data/
 .idea
 .pytest_cache
 .roomodes
-.migrations
+migrations/
+logs/
+.continue/
