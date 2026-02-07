@@ -172,9 +172,19 @@ class MusicPlayer:
             True если трек начал воспроизводиться, False если очередь пуста
         """
         async with self._play_lock:
+            # Если включен режим повтора трека, перезапускаем текущий
+            if self.loop_mode == LoopMode.TRACK:
+                logger.info("Зацикливание текущего трека: перезапуск")
+                return await self._play_track(self.current_track)
+
+            # Если достигнут конец очереди, но включено зацикливание плейлиста
             if self.current_index + 1 >= len(self.queue):
-                logger.info("Достигнут конец очереди")
-                return False
+                if self.loop_mode == LoopMode.PLAYLIST:
+                    logger.info("Зацикливание плейлиста: возврат к началу")
+                    self.current_index = -1
+                else:
+                    logger.info("Достигнут конец очереди")
+                    return False
 
             self.current_index += 1
             return await self._play_track(self.queue[self.current_index])
@@ -320,25 +330,19 @@ class MusicPlayer:
             self._manual_skip = False
             return
 
-        # Зацикливание текущего трека
+
+        # Для режима TRACK повторяем текущий трек (только при авто-переключении)
         if self.loop_mode == LoopMode.TRACK:
-            logger.info("Зацикливание текущего трека")
+            logger.info("Зацикливание текущего трека (авто-повтор)")
             await self._play_track(self.current_track)
             return
 
-        # Переход к следующему треку
-        if self.current_index + 1 < len(self.queue):
-            logger.info("Автоматическое переключение на следующий трек")
-            await self.play_next()
-        # Зацикливание плейлиста
-        elif self.loop_mode == LoopMode.PLAYLIST:
-            logger.info("Зацикливание плейлиста - возврат к первому треку")
-            self.current_index = -1
-            await self.play_next()
-        else:
+        # Переход к следующему треку (логику зацикливания плейлиста берет на себя play_next)
+        if not await self.play_next():
             logger.info("Очередь завершена")
             self.current_track = None
             await self._schedule_disconnect()
+
 
 
     def pause(self) -> bool:
@@ -490,34 +494,22 @@ class MusicPlayer:
             "is_paused": self.is_paused,
         }
 
-    def toggle_loop_track(self) -> LoopMode:
+    def cycle_loop_mode(self) -> LoopMode:
         """
-        Переключение режима зацикливания текущего трека.
+        Циклическое переключение режима зацикливания:
+        NONE -> TRACK -> PLAYLIST -> NONE
         
         Returns:
             Новый режим зацикливания
         """
-        if self.loop_mode == LoopMode.TRACK:
-            self.loop_mode = LoopMode.NONE
-        else:
+        if self.loop_mode == LoopMode.NONE:
             self.loop_mode = LoopMode.TRACK
-        
-        logger.info(f"Режим зацикливания трека: {self.loop_mode.value}")
-        return self.loop_mode
-
-    def toggle_loop_playlist(self) -> LoopMode:
-        """
-        Переключение режима зацикливания плейлиста.
-        
-        Returns:
-            Новый режим зацикливания
-        """
-        if self.loop_mode == LoopMode.PLAYLIST:
-            self.loop_mode = LoopMode.NONE
-        else:
+        elif self.loop_mode == LoopMode.TRACK:
             self.loop_mode = LoopMode.PLAYLIST
-        
-        logger.info(f"Режим зацикливания плейлиста: {self.loop_mode.value}")
+        else:
+            self.loop_mode = LoopMode.NONE
+            
+        logger.info(f"Режим зацикливания изменен на: {self.loop_mode.value}")
         return self.loop_mode
 
 
