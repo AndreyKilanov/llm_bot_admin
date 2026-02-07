@@ -1,0 +1,25 @@
+<!-- Модальное окно подтверждения -->
+<div id="confirm_modal" class="modal-overlay" style="z-index: 1000010; display: none;">
+    <div class="modal-content" style="max-width: 420px; padding: 2rem; border-radius: 28px;">
+        <div class="modal-header"
+            style="border-bottom: none; padding: 0.5rem 0 0.5rem 0; justify-content: center; position: relative;">
+            <h3 id="confirm_title"
+                style="margin:0; font-size: 1.25rem; text-transform: uppercase; letter-spacing: 0.1em; text-align: center;">
+                Подтвердите действие
+            </h3>
+            <button class="btn-transparent" id="confirm_cross_btn"
+                style="position: absolute; right: -0.5rem; top: -0.5rem; padding: 0.5rem; opacity: 0.6;">
+                <i data-lucide="x" style="width: 20px; height: 20px;"></i>
+            </button>
+        </div>
+        <div class="modal-body" style="padding: 1.5rem 0 2rem 0; text-align: center;">
+            <p id="confirm_message"
+                style="margin:0; color: var(--text-secondary); font-size: 1.05rem; line-height: 1.6;"></p>
+        </div>
+        <div class="modal-actions" style="justify-content: center;">
+            <button id="confirm_ok_btn" class="btn btn-primary" style="height: 48px;">ОК</button>
+            <button id="confirm_cancel_btn" class="btn"
+                style="height: 48px; background: rgba(255,255,255,0.03); border: 1px solid var(--border-color); color: var(--text-secondary);">Отмена</button>
+        </div>
+    </div>
+</div>
