@@ -36,6 +36,90 @@ h3 {
     gap: 0.75rem;
 }
 
+.m-0 {
+    margin: 0 !important;
+}
+
+.mb-2 {
+    margin-bottom: 0.5rem !important;
+}
+
+.mb-3 {
+    margin-bottom: 1rem !important;
+}
+
+.mb-4 {
+    margin-bottom: 1.5rem !important;
+}
+
+.mt-2 {
+    margin-top: 0.5rem !important;
+}
+
+.mt-3 {
+    margin-top: 1rem !important;
+}
+
+.mt-4 {
+    margin-top: 2rem !important;
+}
+
+.p-0 {
+    padding: 0 !important;
+}
+
+.p-2 {
+    padding: 0.5rem !important;
+}
+
+.gap-1 {
+    gap: 0.25rem !important;
+}
+
+.gap-2 {
+    gap: 0.5rem !important;
+}
+
+.gap-3 {
+    gap: 1rem !important;
+}
+
+.text-accent {
+    color: var(--accent-primary) !important;
+}
+
+.text-accent-secondary {
+    color: var(--accent-secondary) !important;
+}
+
+.text-secondary {
+    color: var(--text-secondary) !important;
+}
+
+.text-danger {
+    color: var(--danger) !important;
+}
+
+.icon-tiny {
+    width: 12px;
+    height: 12px;
+}
+
+.icon-small {
+    width: 18px;
+    height: 18px;
+}
+
+.icon-medium {
+    width: 20px;
+    height: 20px;
+}
+
+.icon-large {
+    width: 24px;
+    height: 24px;
+}
+
 /* Cards */
 .card {
     background-color: var(--bg-secondary);
@@ -293,6 +377,7 @@ tr.active td:first-child {
     z-index: 1000001;
     transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    -webkit-backdrop-filter: blur(10px);
     backdrop-filter: blur(10px);
     white-space: nowrap;
 }
@@ -309,6 +394,7 @@ tr.active td:first-child {
     width: 100%;
     height: 100%;
     background: rgba(0, 0, 0, 0.8);
+    -webkit-backdrop-filter: blur(12px);
     backdrop-filter: blur(12px);
     display: none;
     justify-content: center;
@@ -364,13 +450,14 @@ tr.active td:first-child {
 /* Confirm Modal */
 #confirm_modal {
     background: rgba(0, 0, 0, 0.4);
+    -webkit-backdrop-filter: blur(4px);
     backdrop-filter: blur(4px);
 }
 
 #confirm_modal .modal-content {
     background: rgba(30, 30, 45, 0.9);
-    backdrop-filter: blur(20px) saturate(180%);
     -webkit-backdrop-filter: blur(20px) saturate(180%);
+    backdrop-filter: blur(20px) saturate(180%);
     border: 1px solid rgba(255, 255, 255, 0.1);
     box-shadow: 0 40px 100px rgba(0, 0, 0, 0.8);
     transform: translateY(-20px) scale(0.95);
@@ -657,6 +744,7 @@ input[type=number] {
 /* Prompt Card Enhancements */
 .prompt-card {
     background: rgba(255, 255, 255, 0.03);
+    -webkit-backdrop-filter: blur(10px);
     backdrop-filter: blur(10px);
     border: 1px solid var(--border-color);
     border-radius: 16px;
@@ -731,4 +819,41 @@ input[type=number] {
     justify-content: center;
     height: 42px;
     font-size: 0.85rem;
+}
+
+/* Prompt Form in Modal */
+.prompt-form-container {
+    background: rgba(0, 0, 0, 0.15);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    padding: 1.5rem;
+}
+
+.input-with-icon {
+    position: relative;
+}
+
+.input-with-icon i {
+    position: absolute;
+    left: 1rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-secondary);
+}
+
+.input-with-icon input {
+    padding-left: 2.75rem;
+}
+
+.no-prompts-msg {
+    color: var(--text-secondary);
+    text-align: center;
+    padding: 2rem;
+}
+
+.font-large {
+    font-size: 1.1rem !important;
+}
+
+.hidden {
+    display: none !important;
 }
