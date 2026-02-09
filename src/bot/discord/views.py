@@ -382,14 +382,22 @@ class MusicPlayerView(discord.ui.View):
 
     def _get_emoji(self, names: Union[str, List[str]], default: str) -> Union[str, discord.Emoji]:
         """Получение кастомного эмодзи по имени (или списку имен) или возврат по умолчанию."""
+        
+        # Пытаемся получить гильдию из сообщения или из канала плеера
+        guild = None
         if self.message and self.message.guild:
+            guild = self.message.guild
+        elif self.player and self.player.text_channel:
+            guild = self.player.text_channel.guild
+            
+        if guild:
             if isinstance(names, str):
                 names = [names]
                 
             for name in names:
                 # Очистим от двоеточий на всякий случай
                 clean_name = name.strip(":")
-                emoji = discord.utils.get(self.message.guild.emojis, name=clean_name)
+                emoji = discord.utils.get(guild.emojis, name=clean_name)
                 if emoji:
                     return emoji
         return default
