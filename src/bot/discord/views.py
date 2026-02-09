@@ -1,6 +1,6 @@
 import asyncio
 import logging
-from typing import Optional, Union
+from typing import Optional, Union, List
 
 import discord
 from discord.ext import commands
@@ -380,12 +380,18 @@ class MusicPlayerView(discord.ui.View):
 
 
 
-    def _get_emoji(self, name: str, default: str) -> Union[str, discord.Emoji]:
-        """Получение кастомного эмодзи по имени или возврат по умолчанию."""
+    def _get_emoji(self, names: Union[str, List[str]], default: str) -> Union[str, discord.Emoji]:
+        """Получение кастомного эмодзи по имени (или списку имен) или возврат по умолчанию."""
         if self.message and self.message.guild:
-            emoji = discord.utils.get(self.message.guild.emojis, name=name)
-            if emoji:
-                return emoji
+            if isinstance(names, str):
+                names = [names]
+                
+            for name in names:
+                # Очистим от двоеточий на всякий случай
+                clean_name = name.strip(":")
+                emoji = discord.utils.get(self.message.guild.emojis, name=clean_name)
+                if emoji:
+                    return emoji
         return default
 
     async def _update_player_message(self):
@@ -405,17 +411,13 @@ class MusicPlayerView(discord.ui.View):
                     item.emoji = "▶️" if self.player.is_paused else "⏸️"
                 elif item.custom_id == "loop_mode":
                     if self.player.loop_mode == LoopMode.NONE:
-                        item.emoji = self._get_emoji("norepeat", "🚫")
+                        item.emoji = self._get_emoji(["norepeat", "no_repeat", "no-repeat"], "🚫")
                         item.style = discord.ButtonStyle.secondary
                     elif self.player.loop_mode == LoopMode.TRACK:
-                        item.emoji = self._get_emoji("repeat1", "🔂")
+                        item.emoji = self._get_emoji(["repeat1", "repeat_one", "loop_one"], "🔂")
                         item.style = discord.ButtonStyle.success
                     elif self.player.loop_mode == LoopMode.PLAYLIST:
-                        # Пробуем найти repeat-1 (как просил пользователь), если нет - repeat_1, иначе дефолт
-                        emoji = self._get_emoji("repeat-1", None)
-                        if not emoji:
-                            emoji = self._get_emoji("repeat_1", "🔁")
-                        item.emoji = emoji
+                        item.emoji = self._get_emoji(["repeat-1", "repeat_1", "loop_playlist"], "🔁")
                         item.style = discord.ButtonStyle.success
 
         
@@ -477,13 +479,10 @@ class MusicPlayerView(discord.ui.View):
 
         # Отображение режима зацикливания
         if self.player.loop_mode == LoopMode.TRACK:
-            emoji = self._get_emoji("repeat1", "🔂")
+            emoji = self._get_emoji(["repeat1", "repeat_one", "loop_one"], "🔂")
             embed.add_field(name=f"{emoji} Режим", value="Зацикливание трека", inline=True)
         elif self.player.loop_mode == LoopMode.PLAYLIST:
-            # Пробуем найти repeat-1, если нет - repeat_1, иначе дефолт
-            emoji = self._get_emoji("repeat-1", None)
-            if not emoji:
-                emoji = self._get_emoji("repeat_1", "🔁")
+            emoji = self._get_emoji(["repeat-1", "repeat_1", "loop_playlist"], "🔁")
             embed.add_field(name=f"{emoji} Режим", value="Зацикливание плейлиста", inline=True)
 
         embed.set_footer(text=f"♫ Трек {queue_info['current_index'] + 1} из {queue_info['total']}")
