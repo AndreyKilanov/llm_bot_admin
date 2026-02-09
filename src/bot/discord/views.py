@@ -397,6 +397,10 @@ class MusicPlayerView(discord.ui.View):
         
         for item in self.children:
             if isinstance(item, discord.ui.Button):
+                # Safety net: гарантируем, что кнопки перемотки разблокированы при обновлении
+                if item.custom_id in ["rewind", "forward"]:
+                    item.disabled = False
+
                 if item.custom_id == "pause_resume":
                     item.emoji = "▶️" if self.player.is_paused else "⏸️"
                 elif item.custom_id == "loop_mode":
