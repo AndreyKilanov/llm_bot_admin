@@ -203,9 +203,19 @@ class MusicPlayerView(discord.ui.View):
 
     @discord.ui.button(emoji="⏸️", style=discord.ButtonStyle.primary, custom_id="pause_resume")
     async def pause_resume_button(self, interaction: discord.Interaction, button: discord.ui.Button):
-        """Кнопка паузы/возобновления."""
+        """Кнопка паузы/возобновления/старта."""
         await interaction.response.defer()
 
+        # Если плеер остановлен, но есть очередь -> Запуск сначала
+        if not self.player.is_playing and not self.player.is_paused and self.player.queue:
+            if await self.player.play_from_start():
+                button.emoji = "⏸️"
+                await self._update_player_message()
+            else:
+                await interaction.followup.send("❌ Не удалось запустить воспроизведение.", ephemeral=True)
+            return
+
+        # Стандартная логика Пауза/Возобновление
         if self.player.is_paused:
             if self.player.resume():
                 button.emoji = "⏸️"
@@ -390,7 +400,7 @@ class MusicPlayerView(discord.ui.View):
 
     async def _update_player_message(self):
         """Обновление сообщения проигрывателя."""
-        if not self.message or not self.player.current_track:
+        if not self.message:
             return
 
         embed = self._create_player_embed()
@@ -398,7 +408,13 @@ class MusicPlayerView(discord.ui.View):
         for item in self.children:
             if isinstance(item, discord.ui.Button):
                 if item.custom_id == "pause_resume":
-                    item.emoji = "▶️" if self.player.is_paused else "⏸️"
+                    if self.player.is_paused:
+                        item.emoji = "▶️"
+                    elif not self.player.is_playing and self.player.queue:
+                        # Если не играет и не на паузе, но очередь есть - значит остановлен/закончился
+                        item.emoji = "▶️"
+                    else:
+                        item.emoji = "⏸️"
                 elif item.custom_id == "loop_mode":
                     if self.player.loop_mode == LoopMode.NONE:
                         item.emoji = self._get_emoji("norepeat", "🚫")
@@ -440,14 +456,15 @@ class MusicPlayerView(discord.ui.View):
         position, total_duration = self.player.get_playback_position()
         embed = discord.Embed(
             title="🎵 Сейчас играет",
-            description=f"**[{track['title']}]({track['url']})**",
+            description=f"**{track['uploader']}**\n[{track['title']}]({track['url']})",
             color=0x9B59B6,
             url=track['url']
         )
-        embed.add_field(name="Канал", value=track['uploader'], inline=True)
+        # embed.add_field(name="Канал", value=track['uploader'], inline=True) # Убрали, т.к. перенесли в описание
         embed.add_field(name="Длительность", value=duration, inline=True)
 
         if track.get('thumbnail'):
+            # Картинка справа (thumbnail)
             embed.set_thumbnail(url=track['thumbnail'])
 
         status_emoji = "⏸️" if self.player.is_paused else "▶️"
@@ -469,7 +486,7 @@ class MusicPlayerView(discord.ui.View):
             position_str = music_service.format_duration(position)
             total_str = music_service.format_duration(total_duration)
             progress_text = f"`{position_str}` {bar} `{total_str}`"
-            embed.add_field(name="⏳ Прогресс", value=progress_text, inline=False)
+            embed.add_field(name="Прогресс", value=progress_text, inline=False)
 
         # Отображение режима зацикливания
         if self.player.loop_mode == LoopMode.TRACK:
