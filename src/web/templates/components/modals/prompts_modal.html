@@ -25,15 +25,11 @@
                     </div>
                     <textarea id="prompt_content" placeholder="Текст системного промпта" rows="6"></textarea>
 
-                    <div class="flex justify-end mt-3 gap-3">
-                        <button id="prompt_cancel_btn" onclick="cancelEditPrompt()"
-                            class="btn btn-secondary btn-status-toggle hidden">
-                            <i data-lucide="x-circle" class="icon-small"></i>
+                    <div class="form-actions justify-end mt-4">
+                        <button id="prompt_cancel_btn" onclick="cancelEditPrompt()" class="btn btn-outline hidden">
                             Отмена
                         </button>
-                        <button id="prompt_submit_btn" onclick="submitPrompt()"
-                            class="btn btn-primary btn-status-toggle">
-                            <i data-lucide="plus-square" class="icon-small"></i>
+                        <button id="prompt_submit_btn" onclick="submitPrompt()" class="btn btn-primary">
                             Добавить
                         </button>
                     </div>
@@ -55,7 +51,13 @@
                 </span>
             </div>
             <div class="flex gap-2">
-                <button class="btn-icon edit-btn" title="Редактировать">
+                <button class="btn-icon activate-btn btn-icon-primary" title="Включить">
+                    <i data-lucide="zap" class="icon-small"></i>
+                </button>
+                <button class="btn-icon deactivate-btn text-danger" title="Выключить">
+                    <i data-lucide="power" class="icon-small"></i>
+                </button>
+                <button class="btn-icon edit-btn" title="Изменить">
                     <i data-lucide="edit-3" class="icon-small"></i>
                 </button>
                 <button class="btn-icon delete-btn text-danger" title="Удалить">
@@ -66,15 +68,6 @@
 
         <div class="prompt-preview"></div>
 
-        <div class="prompt-actions-bottom">
-            <button class="btn btn-status-toggle btn-danger deactivate-btn">
-                <i data-lucide="power" class="icon-medium"></i>
-                Деактивировать
-            </button>
-            <button class="btn btn-primary btn-status-toggle activate-btn">
-                <i data-lucide="zap" class="icon-medium"></i>
-                Активировать
-            </button>
-        </div>
+
     </div>
 </template>
