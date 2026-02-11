@@ -8,7 +8,10 @@ import discord
 
 from src.services import music_service
 
+
 logger = logging.getLogger("discord.music_player")
+
+PLAYLIST_CLEAR_TIMEOUT = 1800  # 30 минут
 
 
 class LoopMode(Enum):
@@ -51,7 +54,9 @@ class MusicPlayer:
         self.start_time: Optional[float] = None
         self.pause_time: Optional[float] = None
         self.paused_duration: float = 0.0
+        self.paused_duration: float = 0.0
         self._preload_task: Optional[asyncio.Task] = None
+        self._playlist_clear_task: Optional[asyncio.Task] = None
         self.loop_mode: LoopMode = LoopMode.NONE
 
         logger.info(f"MusicPlayer создан для сервера {guild_id}")
@@ -81,6 +86,22 @@ class MusicPlayer:
                 await self.disconnect()
 
         self._disconnect_task = asyncio.create_task(disconnect_after_delay())
+
+    async def _schedule_playlist_clear(self):
+        """Запланировать очистку плейлиста через 30 минут бездействия."""
+        if self._playlist_clear_task:
+            self._playlist_clear_task.cancel()
+
+        async def clear_after_delay():
+            await asyncio.sleep(PLAYLIST_CLEAR_TIMEOUT)
+            if not self.is_playing and not self.is_paused:
+                self.queue.clear()
+                self.current_index = -1
+                self.current_track = None
+                logger.info("Плейлист очищен из-за бездействия")
+                await self._update_player_ui()
+
+        self._playlist_clear_task = asyncio.create_task(clear_after_delay())
 
     async def connect(self, channel: discord.VoiceChannel) -> bool:
         """
@@ -147,10 +168,17 @@ class MusicPlayer:
         if self.is_connected:
             await self.voice_client.disconnect()
             logger.info(f"Отключен от голосового канала на сервере {self.guild_id}")
+            self.queue.clear()
+            self.current_index = -1
+            self.current_track = None
 
         if self._disconnect_task:
             self._disconnect_task.cancel()
             self._disconnect_task = None
+
+        if self._playlist_clear_task:
+            self._playlist_clear_task.cancel()
+            self._playlist_clear_task = None
 
         self._voice_channel = None
 
@@ -268,6 +296,15 @@ class MusicPlayer:
 
             self.current_track = track
             self.is_playing = True
+            
+            # Отменяем таймеры очистки и отключения при начале воспроизведения
+            if self._playlist_clear_task:
+                self._playlist_clear_task.cancel()
+                self._playlist_clear_task = None
+            if self._disconnect_task:
+                self._disconnect_task.cancel()
+                self._disconnect_task = None
+
             self.is_paused = False
             self.start_time = time.time()
             self.pause_time = None
@@ -340,8 +377,12 @@ class MusicPlayer:
         # Переход к следующему треку (логику зацикливания плейлиста берет на себя play_next)
         if not await self.play_next():
             logger.info("Очередь завершена")
+            # Не очищаем очередь, просто останавливаемся
             self.current_track = None
+            self.is_playing = False
+            await self._update_player_ui()
             await self._schedule_disconnect()
+            await self._schedule_playlist_clear()
 
 
 
@@ -395,6 +436,21 @@ class MusicPlayer:
 
         logger.info("Воспроизведение остановлено, очередь очищена")
         await self._schedule_disconnect()
+
+    async def stop_playback(self):
+        """Остановка воспроизведения БЕЗ очистки очереди."""
+        if self.voice_client and (self.voice_client.is_playing() or self.voice_client.is_paused()):
+            self.voice_client.stop()
+
+        self.is_playing = False
+        self.is_paused = False
+        self.current_track = None
+        # Сбрасываем индекс, чтобы при нажатии play начать сначала
+        self.current_index = -1
+        
+        logger.info("Воспроизведение остановлено (без очистки)")
+        await self._schedule_disconnect()
+        await self._schedule_playlist_clear()
 
     def get_playback_position(self) -> tuple[int, int]:
         """
