@@ -22,6 +22,13 @@ async function activateConn(id) {
     } catch (e) { }
 }
 
+async function deactivateConn(id) {
+    try {
+        await api("/llm/connections/" + id + "/deactivate", "POST");
+        window.location.reload();
+    } catch (e) { }
+}
+
 async function checkConn(id) {
     try {
         const res = await api("/llm/connections/" + id + "/check", "POST");
@@ -49,7 +56,7 @@ async function checkCurrentConn() {
 
     const btn = document.getElementById("conn_check_btn");
     const originalHtml = btn.innerHTML;
-    btn.innerHTML = `<i data-lucide="loader-2" class="spin" style="width: 16px; height: 16px;"></i> Проверка...`;
+    btn.innerHTML = `<i data-lucide="loader-2" class="spin icon-small"></i>`;
     if (window.lucide) lucide.createIcons();
 
     try {
@@ -93,7 +100,7 @@ async function editConn(id) {
         document.getElementById("conn_key").value = conn.api_key;
         document.getElementById("conn_url").value = conn.base_url || "";
 
-        document.getElementById("conn_submit_btn").innerHTML = `<i data-lucide="save" style="width: 16px; height: 16px;"></i> Сохранить изменения`;
+        document.getElementById("conn_submit_btn").textContent = "Сохранить";
         document.getElementById("conn_form_title").textContent = "Редактировать подключение";
 
         openConnModal();
@@ -115,7 +122,7 @@ function cancelEditConn() {
         dropdown.querySelectorAll('.dropdown-option').forEach(o => o.classList.remove('selected'));
     }
 
-    document.getElementById("conn_submit_btn").innerHTML = `<i data-lucide="save" style="width: 16px; height: 16px;"></i> Добавить`;
+    document.getElementById("conn_submit_btn").textContent = "Добавить";
     document.getElementById("conn_form_title").textContent = "Добавить подключение";
 }
 
