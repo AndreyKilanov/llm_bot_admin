@@ -65,11 +65,11 @@ async function loadPrompts() {
 
             if (p.is_active) {
                 deactivateBtn.style.display = "inline-flex";
-                deactivateBtn.onclick = () => deactivatePrompt(p.id);
+                deactivateBtn.onclick = (e) => { e.stopPropagation(); deactivatePrompt(p.id); };
                 activateBtn.remove();
             } else {
                 activateBtn.style.display = "inline-flex";
-                activateBtn.onclick = () => activatePrompt(p.id);
+                activateBtn.onclick = (e) => { e.stopPropagation(); activatePrompt(p.id); };
                 deactivateBtn.remove();
             }
 
@@ -88,10 +88,10 @@ function editPrompt(id, name, content) {
     document.getElementById("prompt_content").value = content;
 
     const submitBtn = document.getElementById("prompt_submit_btn");
-    submitBtn.innerHTML = '<i data-lucide="save" style="width: 18px; height: 18px;"></i> Сохранить';
+    submitBtn.textContent = 'Сохранить';
 
     document.getElementById("prompt_cancel_btn").classList.remove("hidden");
-    document.getElementById("prompt_form_title").textContent = "Редактировать промпт";
+    document.getElementById("prompt_form_title").textContent = "Изменить промпт";
     if (window.lucide) lucide.createIcons();
 
     const form = document.getElementById("prompt_form");
@@ -108,7 +108,7 @@ function cancelEditPrompt() {
     document.getElementById("prompt_content").value = '';
 
     const submitBtn = document.getElementById("prompt_submit_btn");
-    submitBtn.innerHTML = '<i data-lucide="plus-square" style="width: 18px; height: 18px;"></i> Добавить';
+    submitBtn.textContent = 'Добавить';
 
     document.getElementById("prompt_cancel_btn").classList.add("hidden");
     document.getElementById("prompt_form_title").textContent = "Добавить промпт";
