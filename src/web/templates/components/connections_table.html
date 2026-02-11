@@ -5,8 +5,8 @@
             <i data-lucide="plug" style="color: var(--accent-primary)"></i>
             Подключения к LLM
         </h2>
-        <button class="btn btn-primary flex" onclick="openConnModal()">
-            <i data-lucide="plus-circle" style="width: 18px; height: 18px;"></i>
+        <button class="btn btn-primary btn-sm" onclick="openConnModal()">
+            <i data-lucide="plus-circle" class="icon-small"></i>
             Добавить подключение
         </button>
     </div>
@@ -29,35 +29,23 @@
                 <td style="font-size: 0.85rem; color: var(--text-secondary); opacity: 0.8;">{{ c.base_url or '-' }}</td>
                 <td>
                     <div class="flex" style="gap: 0.5rem; justify-content: flex-end;">
-                        {% if not c.is_active %}
-                        <button class="btn btn-primary btn-table" style="min-width: 40px; padding: 0.4rem;"
-                            onclick="activateConn({{ c.id }})" title="Активировать">
-                            <i data-lucide="power" style="width: 16px; height: 16px;"></i>
+                        <button
+                            class="btn-icon {% if c.is_active %}btn-icon-success{% else %}btn-icon-primary{% endif %}"
+                            onclick="{% if c.is_active %}deactivateConn({{ c.id }}){% else %}activateConn({{ c.id }}){% endif %}"
+                            title="{% if c.is_active %}Деактивировать{% else %}Активировать{% endif %}">
+                            <i data-lucide="{% if c.is_active %}check{% else %}power{% endif %}" class="icon-small"></i>
                         </button>
-                        {% else %}
-                        <button class="btn btn-table" title="Активно"
-                            style="min-width: 40px; padding: 0.4rem; background: rgba(16, 185, 129, 0.1); color: var(--success); cursor: default; border: 1px solid rgba(16, 185, 129, 0.2);">
-                            <i data-lucide="check" style="width: 16px; height: 16px;"></i>
+                        <button class="btn-icon" onclick="showPrompts({{ c.id }}, '{{ c.name }}')" title="Промпты">
+                            <i data-lucide="terminal" class="icon-small"></i>
                         </button>
-                        {% endif %}
-                        <button class="btn btn-table"
-                            style="background: rgba(255, 255, 255, 0.03); border: 1px solid var(--border-color); color: var(--text-primary);"
-                            onclick="showPrompts({{ c.id }}, '{{ c.name }}')" title="Промпты">
-                            <i data-lucide="terminal" style="width: 16px; height: 16px; opacity: 0.9;"></i>
-                            Промпты
+                        <button class="btn-icon btn-icon-accent" onclick="checkConn({{ c.id }})" title="Проверить">
+                            <i data-lucide="activity" class="icon-small"></i>
                         </button>
-                        <button class="btn btn-table"
-                            style="background: rgba(107, 70, 193, 0.05); border: 1px solid var(--accent-primary); color: var(--accent-primary);"
-                            onclick="checkConn({{ c.id }})" title="Проверить">
-                            <i data-lucide="activity" style="width: 16px; height: 16px;"></i>
-                            Проверить
+                        <button class="btn-icon" onclick="editConn({{ c.id }})" title="Редактировать">
+                            <i data-lucide="edit-3" class="icon-small"></i>
                         </button>
-                        <button class="btn-transparent" onclick="editConn({{ c.id }})" title="Редактировать">
-                            <i data-lucide="edit-3" style="width: 18px; height: 18px;"></i>
-                        </button>
-                        <button class="btn-transparent" onclick="deleteConn({{ c.id }})" title="Удалить"
-                            style="color: var(--danger)">
-                            <i data-lucide="trash-2" style="width: 18px; height: 18px;"></i>
+                        <button class="btn-icon btn-icon-danger" onclick="deleteConn({{ c.id }})" title="Удалить">
+                            <i data-lucide="trash-2" class="icon-small"></i>
                         </button>
                     </div>
                 </td>

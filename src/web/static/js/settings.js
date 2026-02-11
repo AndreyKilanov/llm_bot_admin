@@ -121,8 +121,8 @@ async function loadWhitelist(platform) {
                         <input type="checkbox" ${item.is_active ? 'checked' : ''} onchange="toggleWhitelistItem(${item.id}, this.checked, '${platform}')">
                         <span class="slider"></span>
                     </label>
-                    <button class="btn btn-icon" onclick="deleteWhitelistItem(${item.id}, '${platform}')" style="color: var(--danger)">
-                        <i data-lucide="trash-2" style="width: 16px; height: 16px;"></i>
+                    <button class="btn-icon delete-btn text-danger" onclick="deleteWhitelistItem(${item.id}, '${platform}')">
+                        <i data-lucide="trash-2" class="icon-small"></i>
                     </button>
                 </div>
             </div>

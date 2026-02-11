@@ -19,6 +19,16 @@
 </head>
 
 <body>
+    <!-- Page Loader -->
+    <div id="page-loader">
+        <div class="spinner-container">
+            <div class="spinner-glow"></div>
+            <div class="spinner-ring"></div>
+            <div class="spinner-ring"></div>
+            <div class="spinner-ring"></div>
+        </div>
+    </div>
+
     <div id="toast"></div>
 
     {% if no_header %}
@@ -37,9 +47,8 @@
                     <i data-lucide="user" style="width: 16px; height: 16px;"></i>
                     {{ user }}
                 </span>
-                <a href="/admin/logout" class="btn btn-danger"
-                    style="text-decoration:none; padding: 0.4rem 0.8rem; font-size: 0.8rem; display: flex; align-items: center; gap: 0.4rem;">
-                    <i data-lucide="log-out" style="width: 16px; height: 16px;"></i>
+                <a href="/admin/logout" class="btn btn-danger btn-sm">
+                    <i data-lucide="log-out" class="icon-small"></i>
                     Выйти
                 </a>
                 {% endif %}

@@ -32,46 +32,50 @@ let editingPromptId = null;
 async function loadPrompts() {
     try {
         const prompts = await api("/llm/connections/" + selectedConnId + "/prompts");
-        const html = prompts.map(p => `
-            <div class="prompt-card ${p.is_active ? 'active' : ''}">
-                <div class="flex justify-between items-center mb-2">
-                    <div class="flex items-center gap-3">
-                        <strong style="font-size: 1.1rem;">${p.name}</strong>
-                        ${p.is_active ? `
-                            <span class="prompt-status-badge status-active">
-                                <i data-lucide="check-circle" style="width: 12px; height: 12px;"></i>
-                                Активен
-                            </span>
-                        ` : ''}
-                    </div>
-                    <div class="flex" style="gap: 0.5rem;">
-                        <button class="btn-icon" onclick="editPrompt(${p.id}, '${p.name.replace(/'/g, "\\'")}', '${p.content.replace(/\n/g, "\\n").replace(/'/g, "\\'")}')" title="Редактировать">
-                            <i data-lucide="edit-3" style="width: 18px; height: 18px;"></i>
-                        </button>
-                        <button class="btn-icon delete-prompt" onclick="deletePrompt(${p.id})" title="Удалить" style="color: var(--danger)">
-                            <i data-lucide="trash-2" style="width: 18px; height: 18px;"></i>
-                        </button>
-                    </div>
-                </div>
-                
-                <div class="prompt-preview">${p.content}</div>
-                
-                <div class="prompt-actions-bottom">
-                    ${p.is_active ? `
-                        <button class="btn btn-status-toggle btn-danger" onclick="deactivatePrompt(${p.id})">
-                            <i data-lucide="power" style="width: 16px; height: 16px;"></i>
-                            Деактивировать
-                        </button>
-                    ` : `
-                        <button class="btn btn-primary btn-status-toggle" onclick="activatePrompt(${p.id})">
-                            <i data-lucide="zap" style="width: 16px; height: 16px;"></i>
-                            Активировать
-                        </button>
-                    `}
-                </div>
-            </div>
-        `).join("");
-        document.getElementById("prompts_list").innerHTML = html || "<p style='color:var(--text-secondary); text-align:center; padding: 2rem;'>Промптов пока нет. Добавьте свой первый промпт ниже.</p>";
+        const list = document.getElementById("prompts_list");
+        list.innerHTML = "";
+
+        if (prompts.length === 0) {
+            list.innerHTML = "<p style='color:var(--text-secondary); text-align:center; padding: 2rem;'>Промптов пока нет. Добавьте свой первый промпт ниже.</p>";
+            return;
+        }
+
+        const template = document.getElementById("prompt_card_template");
+
+        prompts.forEach(p => {
+            const clone = template.content.cloneNode(true);
+            const card = clone.querySelector(".prompt-card");
+
+            if (p.is_active) card.classList.add("active");
+
+            clone.querySelector(".prompt-name").textContent = p.name;
+            clone.querySelector(".prompt-preview").textContent = p.content;
+
+            const statusBadge = clone.querySelector(".prompt-status-badge");
+            if (!p.is_active) statusBadge.remove();
+
+            const editBtn = clone.querySelector(".edit-btn");
+            editBtn.onclick = () => editPrompt(p.id, p.name, p.content);
+
+            const deleteBtn = clone.querySelector(".delete-btn");
+            deleteBtn.onclick = () => deletePrompt(p.id);
+
+            const activateBtn = clone.querySelector(".activate-btn");
+            const deactivateBtn = clone.querySelector(".deactivate-btn");
+
+            if (p.is_active) {
+                deactivateBtn.style.display = "inline-flex";
+                deactivateBtn.onclick = (e) => { e.stopPropagation(); deactivatePrompt(p.id); };
+                activateBtn.remove();
+            } else {
+                activateBtn.style.display = "inline-flex";
+                activateBtn.onclick = (e) => { e.stopPropagation(); activatePrompt(p.id); };
+                deactivateBtn.remove();
+            }
+
+            list.appendChild(clone);
+        });
+
         if (window.lucide) lucide.createIcons();
     } catch (e) {
         console.error("Failed to load prompts:", e);
@@ -82,12 +86,14 @@ function editPrompt(id, name, content) {
     editingPromptId = id;
     document.getElementById("prompt_name").value = name;
     document.getElementById("prompt_content").value = content;
-    document.getElementById("prompt_submit_btn").innerHTML = `<i data-lucide="save" style="width: 18px; height: 18px;"></i> Сохранить`;
-    document.getElementById("prompt_cancel_btn").style.display = "inline-flex";
-    document.getElementById("prompt_form_title").textContent = "Редактировать промпт";
+
+    const submitBtn = document.getElementById("prompt_submit_btn");
+    submitBtn.textContent = 'Сохранить';
+
+    document.getElementById("prompt_cancel_btn").classList.remove("hidden");
+    document.getElementById("prompt_form_title").textContent = "Изменить промпт";
     if (window.lucide) lucide.createIcons();
 
-    // Scroll to form inside modal body
     const form = document.getElementById("prompt_form");
     if (form) {
         form.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -100,8 +106,11 @@ function cancelEditPrompt() {
     editingPromptId = null;
     document.getElementById("prompt_name").value = '';
     document.getElementById("prompt_content").value = '';
-    document.getElementById("prompt_submit_btn").innerHTML = `<i data-lucide="plus-square" style="width: 18px; height: 18px;"></i> Добавить`;
-    document.getElementById("prompt_cancel_btn").style.display = "none";
+
+    const submitBtn = document.getElementById("prompt_submit_btn");
+    submitBtn.textContent = 'Добавить';
+
+    document.getElementById("prompt_cancel_btn").classList.add("hidden");
     document.getElementById("prompt_form_title").textContent = "Добавить промпт";
     if (window.lucide) lucide.createIcons();
 }

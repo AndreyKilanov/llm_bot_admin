@@ -2,41 +2,34 @@
 <div id="prompts_modal" class="modal-overlay" onclick="closePrompts(event)">
     <div class="modal-content" onclick="event.stopPropagation()">
         <div class="modal-header">
-            <h2 class="flex" style="margin:0">
-                <i data-lucide="terminal" style="color: var(--accent-primary)"></i>
-                Промпты для <span id="current_conn_name" style="color:var(--accent-primary)"></span>
+            <h2 class="flex m-0">
+                <i data-lucide="terminal" class="text-accent"></i>
+                Промпты для <span id="current_conn_name" class="text-accent"></span>
             </h2>
-            <button class="btn-transparent" onclick="closePrompts()" style="padding:0.5rem">
-                <i data-lucide="x" style="width:24px; height:24px"></i>
+            <button class="btn-transparent p-2" onclick="closePrompts()" title="Закрыть">
+                <i data-lucide="x" class="icon-large"></i>
             </button>
         </div>
         <div class="modal-body">
             <div id="prompts_list"></div>
 
-            <div id="prompt_form" class="card"
-                style="margin-top: 2rem; background: rgba(0,0,0,0.15); border: 1px solid rgba(255,255,255,0.05); padding: 1.5rem;">
-                <h3 id="prompt_form_title" style="margin-bottom:1.5rem; font-size: 1.25rem;">
-                    <i data-lucide="plus-circle" style="color: var(--accent-secondary); width: 20px; height: 20px;"></i>
+            <div id="prompt_form" class="card mt-4 prompt-form-container">
+                <h3 id="prompt_form_title" class="mb-4">
+                    <i data-lucide="plus-circle" class="text-accent-secondary icon-medium"></i>
                     Добавить промпт
                 </h3>
-                <div class="form-group" style="gap: 1rem;">
-                    <div style="position: relative;">
-                        <input type="text" id="prompt_name" placeholder="Название промпта"
-                            style="padding-left: 2.75rem;">
-                        <i data-lucide="tag"
-                            style="position: absolute; left: 1rem; top: 50%; transform: translateY(-50%); width: 18px; height: 18px; color: var(--text-secondary);"></i>
+                <div class="form-group gap-3">
+                    <div class="input-with-icon">
+                        <input type="text" id="prompt_name" placeholder="Название промпта">
+                        <i data-lucide="tag" class="icon-small"></i>
                     </div>
                     <textarea id="prompt_content" placeholder="Текст системного промпта" rows="6"></textarea>
 
-                    <div class="flex justify-end" style="margin-top: 1rem; gap: 1rem;">
-                        <button id="prompt_cancel_btn" onclick="cancelEditPrompt()"
-                            class="btn btn-secondary btn-status-toggle" style="display:none;">
-                            <i data-lucide="x-circle" style="width: 18px; height: 18px;"></i>
+                    <div class="form-actions justify-end mt-4">
+                        <button id="prompt_cancel_btn" onclick="cancelEditPrompt()" class="btn btn-outline hidden">
                             Отмена
                         </button>
-                        <button id="prompt_submit_btn" onclick="submitPrompt()"
-                            class="btn btn-primary btn-status-toggle">
-                            <i data-lucide="plus-square" style="width: 18px; height: 18px;"></i>
+                        <button id="prompt_submit_btn" onclick="submitPrompt()" class="btn btn-primary">
                             Добавить
                         </button>
                     </div>
@@ -45,3 +38,36 @@
         </div>
     </div>
 </div>
+
+<!-- Шаблон карточки промпта -->
+<template id="prompt_card_template">
+    <div class="prompt-card">
+        <div class="flex justify-between items-center mb-2">
+            <div class="flex items-center gap-3">
+                <strong class="prompt-name font-large"></strong>
+                <span class="prompt-status-badge status-active">
+                    <i data-lucide="check-circle" class="icon-tiny"></i>
+                    Активен
+                </span>
+            </div>
+            <div class="flex gap-2">
+                <button class="btn-icon activate-btn btn-icon-primary" title="Включить">
+                    <i data-lucide="zap" class="icon-small"></i>
+                </button>
+                <button class="btn-icon deactivate-btn text-danger" title="Выключить">
+                    <i data-lucide="power" class="icon-small"></i>
+                </button>
+                <button class="btn-icon edit-btn" title="Изменить">
+                    <i data-lucide="edit-3" class="icon-small"></i>
+                </button>
+                <button class="btn-icon delete-btn text-danger" title="Удалить">
+                    <i data-lucide="trash-2" class="icon-small"></i>
+                </button>
+            </div>
+        </div>
+
+        <div class="prompt-preview"></div>
+
+
+    </div>
+</template>

@@ -1,11 +1,17 @@
-"""
-Тесты для музыкального плеера.
-"""
-
-import pytest
+import sys
+import os
+sys.path.append(os.getcwd())
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from src.bot.discord.music_player import MusicPlayer
+# Mock discord module before importing anything that uses it
+sys.modules["discord"] = MagicMock()
+sys.modules["discord.ext"] = MagicMock()
+sys.modules["discord.ext.commands"] = MagicMock()
+sys.modules["discord.ui"] = MagicMock()
+sys.modules["yt_dlp"] = MagicMock()
+
+import pytest
+from src.bot.discord.music_player import MusicPlayer, LoopMode
 
 
 class TestMusicPlayer:
@@ -14,7 +20,8 @@ class TestMusicPlayer:
     @pytest.fixture
     def player(self):
         """Фикстура для создания экземпляра плеера."""
-        return MusicPlayer(guild_id=123456789)
+        bot = MagicMock()
+        return MusicPlayer(guild_id=123456789, bot=bot)
     
     @pytest.fixture
     def mock_voice_channel(self):
@@ -56,6 +63,7 @@ class TestMusicPlayer:
     
     def test_initialization(self, player):
         """Тест инициализации плеера."""
+        player.bot.get_guild.return_value = None
         assert player.guild_id == 123456789
         assert player.voice_client is None
         assert player.queue == []
@@ -108,9 +116,12 @@ class TestMusicPlayer:
         player.current_track = sample_tracks[1]
         player.is_playing = True
         
-        # Мокируем voice_client
-        player.voice_client = MagicMock()
-        player.voice_client.is_playing.return_value = True
+        # Мокируем voice_client через bot
+        guild = MagicMock()
+        voice_client = MagicMock()
+        voice_client.is_playing.return_value = True
+        guild.voice_client = voice_client
+        player.bot.get_guild.return_value = guild
         
         await player.stop()
         
@@ -119,12 +130,40 @@ class TestMusicPlayer:
         assert player.current_index == -1
         assert player.is_playing is False
         assert player.is_paused is False
+    @pytest.mark.asyncio
+    async def test_stop_playback(self, player, sample_tracks):
+        """Тест остановки воспроизведения БЕЗ очистки очереди."""
+        player.add_to_queue(sample_tracks)
+        player.current_index = 1
+        player.current_track = sample_tracks[1]
+        player.is_playing = True
+        
+        # Мокируем voice_client через bot
+        guild = MagicMock()
+        voice_client = MagicMock()
+        voice_client.is_playing.return_value = True
+        guild.voice_client = voice_client
+        player.bot.get_guild.return_value = guild
+        
+        await player.stop_playback()
+        
+        # Очередь должна остаться
+        assert len(player.queue) == 3
+        assert player.current_track is None
+        assert player.current_index == -1
+        assert player.is_playing is False
         player.voice_client.stop.assert_called_once()
+
     
-    def test_pause(self, player):
+    @pytest.mark.asyncio
+    async def test_pause(self, player):
         """Тест паузы воспроизведения."""
-        player.voice_client = MagicMock()
-        player.voice_client.is_playing.return_value = True
+        # Мокируем voice_client через bot
+        guild = MagicMock()
+        voice_client = MagicMock()
+        voice_client.is_playing.return_value = True
+        guild.voice_client = voice_client
+        player.bot.get_guild.return_value = guild
         
         result = player.pause()
         
@@ -132,15 +171,21 @@ class TestMusicPlayer:
         assert player.is_paused is True
         player.voice_client.pause.assert_called_once()
     
-    def test_pause_not_playing(self, player):
+    @pytest.mark.asyncio
+    async def test_pause_not_playing(self, player):
         """Тест паузы когда ничего не воспроизводится."""
         result = player.pause()
         assert result is False
     
-    def test_resume(self, player):
+    @pytest.mark.asyncio
+    async def test_resume(self, player):
         """Тест возобновления воспроизведения."""
-        player.voice_client = MagicMock()
-        player.voice_client.is_paused.return_value = True
+        # Мокируем voice_client через bot
+        guild = MagicMock()
+        voice_client = MagicMock()
+        voice_client.is_paused.return_value = True
+        guild.voice_client = voice_client
+        player.bot.get_guild.return_value = guild
         player.is_paused = True
         
         result = player.resume()
@@ -149,17 +194,29 @@ class TestMusicPlayer:
         assert player.is_paused is False
         player.voice_client.resume.assert_called_once()
     
-    def test_resume_not_paused(self, player):
+    @pytest.mark.asyncio
+    async def test_resume_not_paused(self, player):
         """Тест возобновления когда воспроизведение не на паузе."""
         result = player.resume()
         assert result is False
     
     @pytest.mark.asyncio
-    async def test_disconnect(self, player):
+    async def test_disconnect(self, player, sample_tracks):
         """Тест отключения от голосового канала."""
-        player.voice_client = AsyncMock()
+        player.add_to_queue(sample_tracks)
+        
+        # Мокируем voice_client через bot
+        guild = MagicMock()
+        voice_client = AsyncMock()
+        # Для is_connected
+        voice_client.is_connected.return_value = True
+        guild.voice_client = voice_client
+        player.bot.get_guild.return_value = guild
         
         await player.disconnect()
         
         player.voice_client.disconnect.assert_called_once()
         assert player.voice_client is None
+        assert len(player.queue) == 0
+        assert player.current_index == -1
+        assert player.current_track is None

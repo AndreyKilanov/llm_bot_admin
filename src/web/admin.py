@@ -223,6 +223,12 @@ async def api_activate_connection(conn_id: int, _: Annotated[str, Depends(verify
     return {"ok": True}
 
 
+@router.post("/api/llm/connections/{conn_id}/deactivate")
+async def api_deactivate_connection(conn_id: int, _: Annotated[str, Depends(verify_api_session)]) -> dict:
+    await LLMService.deactivate_connection(conn_id)
+    return {"ok": True}
+
+
 @router.post("/api/llm/connections/{conn_id}/check")
 async def api_check_connection(conn_id: int, _: Annotated[str, Depends(verify_api_session)]) -> dict:
     success = await LLMService.check_connection(conn_id)

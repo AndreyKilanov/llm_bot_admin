@@ -215,6 +215,19 @@ class LLMService:
         return updated_count > 0
 
     @staticmethod
+    async def deactivate_connection(connection_id: int) -> bool:
+        """Деактивирует указанное подключение.
+
+        Args:
+            connection_id: ID подключения, которое нужно деактивировать.
+
+        Returns:
+            True, если подключение найдено и деактивировано; иначе False.
+        """
+        updated_count = await LLMConnection.filter(id=connection_id).update(is_active=False)
+        return updated_count > 0
+
+    @staticmethod
     async def create_prompt(
         connection_id: int,
         name: str,
