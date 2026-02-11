@@ -6,8 +6,8 @@
                 <i data-lucide="settings" style="color: var(--accent-primary)"></i>
                 Настройки доступа
             </h2>
-            <button class="btn-transparent" onclick="closeSettingsModal()" style="padding:0.5rem">
-                <i data-lucide="x" style="width:24px; height:24px"></i>
+            <button class="btn-transparent p-2" onclick="closeSettingsModal()">
+                <i data-lucide="x" class="icon-medium"></i>
             </button>
         </div>
         <div class="settings-tabs">
@@ -80,8 +80,8 @@
                             <div class="flex" style="gap: 0.5rem;">
                                 <input type="text" id="whitelist_tg_id" placeholder="Chat ID" style="flex-grow:1">
                                 <input type="text" id="whitelist_tg_title" placeholder="Название" style="flex-grow:1">
-                                <button class="btn btn-primary" onclick="addWhitelistItem('telegram')">
-                                    <i data-lucide="plus"></i>
+                                <button class="btn btn-primary btn-table" onclick="addWhitelistItem('telegram')">
+                                    <i data-lucide="plus" class="icon-small"></i>
                                 </button>
                             </div>
                         </div>
@@ -172,8 +172,8 @@
                                 <input type="text" id="whitelist_dc_id" placeholder="Channel/Server ID"
                                     style="flex-grow:1">
                                 <input type="text" id="whitelist_dc_title" placeholder="Название" style="flex-grow:1">
-                                <button class="btn btn-primary" onclick="addWhitelistItem('discord')">
-                                    <i data-lucide="plus"></i>
+                                <button class="btn btn-primary btn-table" onclick="addWhitelistItem('discord')">
+                                    <i data-lucide="plus" class="icon-small"></i>
                                 </button>
                             </div>
                         </div>
@@ -184,7 +184,7 @@
 
         </div>
         <div class="modal-footer">
-            <button class="btn btn-primary" onclick="saveSettings()">Сохранить настройки</button>
+            <button class="btn btn-primary" onclick="saveSettings()">Сохранить</button>
         </div>
     </div>
 </div>
