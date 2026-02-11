@@ -5,8 +5,8 @@
             <i data-lucide="bar-chart-2" style="color: var(--accent-primary)"></i>
             Статистика
         </h2>
-        <button class="btn btn-danger flex" onclick="clearAll()">
-            <i data-lucide="trash-2" style="width: 16px; height: 16px;"></i>
+        <button class="btn btn-danger btn-sm" onclick="clearAll()">
+            <i data-lucide="trash-2" class="icon-small"></i>
             Очистить всю историю
         </button>
     </div>
@@ -23,7 +23,8 @@
             <div style="display: flex; align-items: baseline; gap: 0.75rem;">
                 <div style="font-size: 2rem; font-weight: 700; color: var(--text-primary);">{{ stats.chats_count }}
                 </div>
-                <div style="font-size: 0.85rem; color: var(--success); font-weight: 500;">
+                <div
+                    style="font-size: 0.85rem; color: {% if stats.active_chats_24h > 0 %}var(--success){% else %}var(--text-secondary){% endif %}; font-weight: 500;">
                     <i data-lucide="trending-up"
                         style="width: 12px; height: 12px; display: inline-block; vertical-align: middle;"></i>
                     {{ stats.active_chats_24h }} за 24ч
@@ -42,7 +43,8 @@
             <div style="display: flex; align-items: baseline; gap: 0.75rem;">
                 <div style="font-size: 2rem; font-weight: 700; color: var(--text-primary);">{{ stats.total_messages }}
                 </div>
-                <div style="font-size: 0.85rem; color: var(--success); font-weight: 500;">
+                <div
+                    style="font-size: 0.85rem; color: {% if stats.messages_24h > 0 %}var(--success){% else %}var(--text-secondary){% endif %}; font-weight: 500;">
                     +{{ stats.messages_24h }} за 24ч
                 </div>
             </div>
