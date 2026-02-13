@@ -180,6 +180,7 @@ h3 {
 /* Global Arrow Rule for Interactive Elements */
 a,
 button,
+label,
 [data-tooltip],
 [onclick],
 .tab-item,
@@ -378,7 +379,13 @@ textarea {
 
 input,
 select,
-textarea {
+textarea,
+input:focus,
+select:focus,
+textarea:focus,
+input:active,
+select:active,
+textarea:active {
     width: 100%;
     padding: 0.8rem 1.2rem;
     border-radius: 14px;
@@ -386,7 +393,7 @@ textarea {
     background-color: var(--bg-primary);
     color: var(--text-primary);
     font-family: inherit;
-    cursor: var(--cursor-text) !important;
+    cursor: var(--cursor-default) !important;
 }
 
 input:focus,
@@ -607,6 +614,14 @@ tr.active td:first-child {
 #confirm_modal .modal-header h3 {
     color: var(--accent-primary);
     font-weight: 700;
+}
+
+/* High-Quality Modern Tech Cursors */
+:root {
+    --cursor-default: url("data:image/svg+xml,%3Csvg width='24' height='24' viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M5 3.5L19.5 12L5 20.5V3.5Z' fill='%236b46c1' stroke='white' stroke-width='1.5' stroke-linejoin='round'/%3E%3C/svg%3E") 0 0, auto;
+    --cursor-default-active: url("data:image/svg+xml,%3Csvg width='24' height='24' viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M6.5 5L21 13.5L6.5 22V5Z' fill='%234a2c8c' stroke='white' stroke-width='1.5' stroke-linejoin='round'/%3E%3C/svg%3E") 0 0, auto;
+    --cursor-pointer: url("data:image/svg+xml,%3Csvg width='24' height='24' viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M9.5 5.5V11.5M9.5 5.5C9.5 4.39543 10.3954 3.5 11.5 3.5C12.6046 3.5 13.5 4.39543 13.5 5.5V10.5M13.5 5.5C13.5 5.22386 13.7239 5 14 5C14.2761 5 14.5 5.22386 14.5 5.5V10.5M14.5 5.5C14.5 5.22386 14.7239 5 15 5C15.2761 5 15.5 5.22386 15.5 5.5V11.5M15.5 11.5C15.5 14.8137 12.8137 17.5 9.5 17.5H9C5.68629 17.5 3 14.8137 3 11.5V9.5C3 8.39543 3.89543 7.5 5 7.5V7.5C6.10457 7.5 7 8.39543 7 9.5V11.5' stroke='%239f7aea' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") 10 0, pointer;
+    --cursor-text: url("data:image/svg+xml,%3Csvg width='32' height='32' viewBox='0 0 32 32' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Crect x='15' y='6' width='1.5' height='20' fill='%239f7aea'/%3E%3C/svg%3E") 16 16, text;
 }
 
 /* Switch */
@@ -923,7 +938,7 @@ input[type=number] {
     border: 1px solid rgba(255, 255, 255, 0.05);
     white-space: pre-wrap;
     line-height: 1.5;
-    cursor: var(--cursor-text) !important;
+    cursor: var(--cursor-default) !important;
 }
 
 .prompt-preview::-webkit-scrollbar {
@@ -1158,31 +1173,53 @@ input[type=number] {
     transform: translateX(-50%) translateY(0);
 }
 
-/* Retro Game Click Effect */
-.click-effect {
+/* Soft Cursor Click Ripple */
+.click-soft-ripple {
     position: fixed;
-    width: 20px;
-    height: 20px;
-    border: 2px solid var(--accent-secondary);
+    width: 6px;
+    height: 6px;
+    background-color: var(--accent-secondary);
     border-radius: 50%;
     pointer-events: none;
     z-index: 1000000;
     transform: translate(-50%, -50%);
-    animation: clickPulse 0.4s ease-out forwards;
-    box-shadow: 0 0 10px var(--accent-primary);
+    animation: softRipple 0.3s ease-out forwards;
+    filter: blur(2px);
+    opacity: 0.6;
 }
 
-@keyframes clickPulse {
+@keyframes softRipple {
     0% {
-        width: 0px;
-        height: 0px;
+        transform: translate(-50%, -50%) scale(1);
+        opacity: 0.6;
+    }
+
+    100% {
+        transform: translate(-50%, -50%) scale(6);
+        opacity: 0;
+    }
+}
+
+/* Retro Game Click Effect - Pixel Explosion */
+.pixel-particle {
+    position: fixed;
+    width: 4px;
+    height: 4px;
+    background-color: var(--accent-secondary);
+    pointer-events: none;
+    z-index: 1000000;
+    box-shadow: 0 0 4px var(--accent-primary);
+    animation: pixelExplode 0.5s ease-out forwards;
+}
+
+@keyframes pixelExplode {
+    0% {
+        transform: translate(-50%, -50%) translate(0, 0) rotate(0deg);
         opacity: 1;
     }
 
     100% {
-        width: 40px;
-        height: 40px;
+        transform: translate(-50%, -50%) translate(var(--dx), var(--dy)) rotate(var(--dr));
         opacity: 0;
-        border-width: 1px;
     }
 }
