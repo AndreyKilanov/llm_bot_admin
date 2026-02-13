@@ -31,6 +31,8 @@ h3 {
     margin-top: 0;
     margin-bottom: 1.25rem;
     font-weight: 600;
+    font-family: inherit;
+    font-size: 1.25rem;
     display: flex;
     align-items: center;
     gap: 0.75rem;
@@ -158,10 +160,10 @@ h3 {
     border-radius: 12px;
     border: none;
     cursor: pointer;
-    font-weight: 600;
-    font-family: 'Outfit', sans-serif;
-    letter-spacing: 0.01em;
-    font-size: 0.875rem;
+    font-weight: 500;
+    font-family: inherit;
+    letter-spacing: 0.02em;
+    font-size: 0.85rem;
     transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
     display: inline-flex;
     align-items: center;
