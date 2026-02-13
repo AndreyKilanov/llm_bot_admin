@@ -1,6 +1,13 @@
 html,
-body {
+body,
+* {
     cursor: var(--cursor-default) !important;
+}
+
+html:active,
+body:active,
+*:active {
+    cursor: var(--cursor-default-active) !important;
 }
 
 * {
