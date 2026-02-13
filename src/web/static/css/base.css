@@ -1,3 +1,8 @@
+html,
+body {
+    cursor: var(--cursor-default) !important;
+}
+
 * {
     box-sizing: border-box;
 }
