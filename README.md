@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="src/web/static/images/llm_bot_admin_logo.png" alt="LLM Bot Admin Logo" width="200">
+</p>
+
 # 🤖 AI Multi-Platform Bot & Admin Panel
 
 ![Python](https://img.shields.io/badge/Python-3.11+-blue?style=for-the-badge&logo=python)
