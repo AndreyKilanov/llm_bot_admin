@@ -2,85 +2,86 @@
 <div id="settings_modal" class="modal-overlay" onclick="closeSettingsModal(event)">
     <div class="modal-content" onclick="event.stopPropagation()">
         <div class="modal-header">
-            <h2 class="flex" style="margin:0">
-                <i data-lucide="settings" style="color: var(--accent-primary)"></i>
+            <h2 class="flex m-0">
+                <i data-lucide="settings" class="text-accent icon-medium"></i>
                 Настройки доступа
             </h2>
-            <button class="btn-transparent p-2" onclick="closeSettingsModal()">
+            <button class="btn-transparent p-2" onclick="closeSettingsModal()" title="Закрыть" aria-label="Закрыть">
                 <i data-lucide="x" class="icon-medium"></i>
             </button>
         </div>
         <div class="settings-tabs">
             <div class="tab-item active" onclick="switchSettingsTab('telegram')">
-                <i data-lucide="send" style="width: 16px; height: 16px;"></i>
+                <i data-lucide="send" class="icon-xs"></i>
                 Telegram
             </div>
             <div class="tab-item" onclick="switchSettingsTab('discord')">
-                <i data-lucide="gamepad-2" style="width: 16px; height: 16px;"></i>
+                <i data-lucide="gamepad-2" class="icon-xs"></i>
                 Discord
             </div>
         </div>
-        <div class="modal-body" style="padding: 0;">
-            <div class="settings-content" style="padding: 1.5rem;">
+        <div class="modal-body p-0">
+            <div class="settings-content p-6">
                 <!-- Telegram Settings -->
                 <div id="tab_telegram" class="tab-pane active">
-                    <div class="card" style="margin-bottom: 1.5rem; background: rgba(255,255,255,0.02)">
-                        <div class="flex justify-between" style="margin-bottom: 1rem;">
+                    <div class="card mb-4 card-glass">
+                        <div class="flex justify-between mb-3">
                             <div>
-                                <h3 style="margin:0 0 0.25rem 0">Включить Telegram бота</h3>
-                                <p style="margin:0; color:var(--text-secondary); font-size:0.85rem">
+                                <h3 class="m-0 mb-1">Включить Telegram бота</h3>
+                                <p class="m-0 text-secondary text-xs">
                                     Основной бот для Telegram
                                 </p>
                             </div>
                             <label class="switch">
-                                <input type="checkbox" id="setting_tg_enabled">
+                                <input type="checkbox" id="setting_tg_enabled" title="Включить Telegram бота">
                                 <span class="slider"></span>
                             </label>
                         </div>
-                        <div class="flex justify-between"
-                            style="margin-bottom: 1rem; border-top: 1px solid var(--border-color); padding-top: 1rem;">
+                        <div class="flex justify-between mb-3 border-top pt-3">
                             <div>
-                                <h3 style="margin:0 0 0.25rem 0">Приватные сообщения</h3>
-                                <p style="margin:0; color:var(--text-secondary); font-size:0.85rem">
+                                <h3 class="m-0 mb-1">Приватные сообщения</h3>
+                                <p class="m-0 text-secondary text-xs">
                                     Разрешить отвечать в ЛС
                                 </p>
                             </div>
                             <label class="switch">
-                                <input type="checkbox" id="setting_tg_private">
+                                <input type="checkbox" id="setting_tg_private" title="Приватные сообщения">
                                 <span class="slider"></span>
                             </label>
                         </div>
-                        <div class="flex justify-between"
-                            style="margin-bottom: 1rem; border-top: 1px solid var(--border-color); padding-top: 1rem;">
+                        <div class="flex justify-between mb-3 border-top pt-3">
                             <div>
-                                <h3 style="margin:0 0 0.25rem 0">Добавление новых чатов</h3>
-                                <p style="margin:0; color:var(--text-secondary); font-size:0.85rem">
+                                <h3 class="m-0 mb-1">Добавление новых чатов</h3>
+                                <p class="m-0 text-secondary text-xs">
                                     Разрешить боту отвечать в новых чатах
                                 </p>
                             </div>
                             <label class="switch">
-                                <input type="checkbox" id="setting_tg_new_chats">
+                                <input type="checkbox" id="setting_tg_new_chats" title="Добавление новых чатов">
                                 <span class="slider"></span>
                             </label>
                         </div>
-                        <div class="flex justify-between" style="align-items: center;">
+                        <div class="flex justify-between items-center border-top pt-3">
                             <div>
-                                <h3 style="margin:0 0 0.25rem 0">История сообщений</h3>
-                                <p style="margin:0; color:var(--text-secondary); font-size:0.85rem">
+                                <h3 class="m-0 mb-1">История сообщений</h3>
+                                <p class="m-0 text-secondary text-xs">
                                     Количество запоминаемых сообщений
                                 </p>
                             </div>
-                            <input type="number" id="setting_tg_memory" class="input-tiny" value="10" min="0" max="100">
+                            <input type="number" id="setting_tg_memory" class="input-tiny" value="10" min="0" max="100"
+                                title="Количество запоминаемых сообщений">
                         </div>
                     </div>
 
-                    <div class="card" style="background: rgba(255,255,255,0.02)">
-                        <h3 style="margin-bottom:1rem">Белый список (Telegram)</h3>
-                        <div class="form-group" style="margin-bottom: 1rem;">
-                            <div class="flex" style="gap: 0.5rem;">
-                                <input type="text" id="whitelist_tg_id" placeholder="Chat ID" style="flex-grow:1">
-                                <input type="text" id="whitelist_tg_title" placeholder="Название" style="flex-grow:1">
-                                <button class="btn btn-primary btn-table" onclick="addWhitelistItem('telegram')">
+                    <div class="card card-glass">
+                        <h3 class="mb-3">Белый список (Telegram)</h3>
+                        <div class="form-group mb-3">
+                            <div class="flex gap-2 items-center">
+                                <input type="text" id="whitelist_tg_id" placeholder="Chat ID" class="flex-1 input-sm">
+                                <input type="text" id="whitelist_tg_title" placeholder="Название"
+                                    class="flex-1 input-sm">
+                                <button class="btn btn-primary btn-sm btn-add-whitelist flex-shrink-0"
+                                    onclick="addWhitelistItem('telegram')" title="Добавить" aria-label="Добавить">
                                     <i data-lucide="plus" class="icon-small"></i>
                                 </button>
                             </div>
@@ -91,88 +92,87 @@
 
                 <!-- Discord Settings -->
                 <div id="tab_discord" class="tab-pane">
-                    <div class="card" style="margin-bottom: 1.5rem; background: rgba(255,255,255,0.02)">
-                        <div class="flex justify-between" style="margin-bottom: 1rem;">
+                    <div class="card mb-4 card-glass">
+                        <div class="flex justify-between mb-3">
                             <div>
-                                <h3 style="margin:0 0 0.25rem 0">Включить Discord бота</h3>
-                                <p style="margin:0; color:var(--text-secondary); font-size:0.85rem">
+                                <h3 class="m-0 mb-1">Включить Discord бота</h3>
+                                <p class="m-0 text-secondary text-xs">
                                     Бот для сервера Discord
                                 </p>
                             </div>
                             <label class="switch">
-                                <input type="checkbox" id="setting_dc_enabled">
+                                <input type="checkbox" id="setting_dc_enabled" title="Включить Discord бота">
                                 <span class="slider"></span>
                             </label>
                         </div>
-                        <div class="flex justify-between"
-                            style="margin-bottom: 1rem; border-top: 1px solid var(--border-color); padding-top: 1rem;">
+                        <div class="flex justify-between mb-3 border-top pt-3">
                             <div>
-                                <h3 style="margin:0 0 0.25rem 0">Личные сообщения</h3>
-                                <p style="margin:0; color:var(--text-secondary); font-size:0.85rem">
+                                <h3 class="m-0 mb-1">Личные сообщения</h3>
+                                <p class="m-0 text-secondary text-xs">
                                     Разрешить отвечать в ЛС (по умолчанию выкл)
                                 </p>
                             </div>
                             <label class="switch">
-                                <input type="checkbox" id="setting_dc_dm">
+                                <input type="checkbox" id="setting_dc_dm" title="Личные сообщения">
                                 <span class="slider"></span>
                             </label>
                         </div>
-                        <div class="flex justify-between"
-                            style="margin-bottom: 1rem; border-top: 1px solid var(--border-color); padding-top: 1rem;">
+                        <div class="flex justify-between mb-3 border-top pt-3">
                             <div>
-                                <h3 style="margin:0 0 0.25rem 0">Добавление новых чатов</h3>
-                                <p style="margin:0; color:var(--text-secondary); font-size:0.85rem">
+                                <h3 class="m-0 mb-1">Добавление новых чатов</h3>
+                                <p class="m-0 text-secondary text-xs">
                                     Разрешить боту отвечать в новых чатах
                                 </p>
                             </div>
                             <label class="switch">
-                                <input type="checkbox" id="setting_dc_new_chats">
+                                <input type="checkbox" id="setting_dc_new_chats" title="Добавление новых чатов">
                                 <span class="slider"></span>
                             </label>
                         </div>
-                        <div class="flex justify-between"
-                            style="margin-bottom: 1rem; border-top: 1px solid var(--border-color); padding-top: 1rem;">
+                        <div class="flex justify-between mb-3 border-top pt-3">
                             <div>
-                                <h3 style="margin:0 0 0.25rem 0">Музыкальный плеер</h3>
-                                <p style="margin:0; color:var(--text-secondary); font-size:0.85rem">
+                                <h3 class="m-0 mb-1">Музыкальный плеер</h3>
+                                <p class="m-0 text-secondary text-xs">
                                     Включить функционал проигрывания музыки
                                 </p>
                             </div>
                             <label class="switch">
-                                <input type="checkbox" id="setting_dc_music">
+                                <input type="checkbox" id="setting_dc_music" title="Музыкальный плеер">
                                 <span class="slider"></span>
                             </label>
                         </div>
-                        <div class="flex justify-between"
-                            style="align-items: center; margin-bottom: 1rem; border-top: 1px solid var(--border-color); padding-top: 1rem;">
+                        <div class="flex justify-between items-center mb-3 border-top pt-3">
                             <div>
-                                <h3 style="margin:0 0 0.25rem 0">Время перемотки</h3>
-                                <p style="margin:0; color:var(--text-secondary); font-size:0.85rem">
+                                <h3 class="m-0 mb-1">Время перемотки</h3>
+                                <p class="m-0 text-secondary text-xs">
                                     Интервал перемотки (в секундах)
                                 </p>
                             </div>
-                            <input type="number" id="setting_dc_seek" class="input-tiny" value="10" min="1" max="600">
+                            <input type="number" id="setting_dc_seek" class="input-tiny" value="10" min="1" max="600"
+                                title="Время перемотки">
                         </div>
-                        <div class="flex justify-between"
-                            style="align-items: center; border-top: 1px solid var(--border-color); padding-top: 1rem;">
+                        <div class="flex justify-between items-center border-top pt-3">
                             <div>
-                                <h3 style="margin:0 0 0.25rem 0">История сообщений</h3>
-                                <p style="margin:0; color:var(--text-secondary); font-size:0.85rem">
+                                <h3 class="m-0 mb-1">История сообщений</h3>
+                                <p class="m-0 text-secondary text-xs">
                                     Количество запоминаемых сообщений
                                 </p>
                             </div>
-                            <input type="number" id="setting_dc_memory" class="input-tiny" value="10" min="0" max="100">
+                            <input type="number" id="setting_dc_memory" class="input-tiny" value="10" min="0" max="100"
+                                title="Количество запоминаемых сообщений">
                         </div>
                     </div>
 
-                    <div class="card" style="background: rgba(255,255,255,0.02)">
-                        <h3 style="margin-bottom:1rem">Белый список (Discord)</h3>
-                        <div class="form-group" style="margin-bottom: 1rem;">
-                            <div class="flex" style="gap: 0.5rem;">
+                    <div class="card card-glass">
+                        <h3 class="mb-3">Белый список (Discord)</h3>
+                        <div class="form-group mb-3">
+                            <div class="flex gap-2 items-center">
                                 <input type="text" id="whitelist_dc_id" placeholder="Channel/Server ID"
-                                    style="flex-grow:1">
-                                <input type="text" id="whitelist_dc_title" placeholder="Название" style="flex-grow:1">
-                                <button class="btn btn-primary btn-table" onclick="addWhitelistItem('discord')">
+                                    class="flex-1 input-sm">
+                                <input type="text" id="whitelist_dc_title" placeholder="Название"
+                                    class="flex-1 input-sm">
+                                <button class="btn btn-primary btn-sm btn-add-whitelist flex-shrink-0"
+                                    onclick="addWhitelistItem('discord')" title="Добавить" aria-label="Добавить">
                                     <i data-lucide="plus" class="icon-small"></i>
                                 </button>
                             </div>
