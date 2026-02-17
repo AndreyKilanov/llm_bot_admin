@@ -1,8 +1,8 @@
 <!-- Подключения -->
 <div class="card">
-    <div class="flex justify-between" style="margin-bottom: 1.5rem;">
-        <h2 class="flex" style="margin:0">
-            <i data-lucide="plug" style="color: var(--accent-primary)"></i>
+    <div class="flex justify-between mb-4">
+        <h2 class="flex m-0">
+            <i data-lucide="plug" class="text-accent icon-medium"></i>
             Подключения к LLM
         </h2>
         <button class="btn btn-primary btn-sm" onclick="openConnModal()">
@@ -26,25 +26,25 @@
                 <td>{{ c.name }}</td>
                 <td>{{ c.provider }}</td>
                 <td title="{{ c.model_name }}">{{ c.model_name }}</td>
-                <td style="font-size: 0.85rem; color: var(--text-secondary); opacity: 0.8;">{{ c.base_url or '-' }}</td>
+                <td class="text-xs text-secondary opacity-80">{{ c.base_url or '-' }}</td>
                 <td>
-                    <div class="flex" style="gap: 0.5rem; justify-content: flex-end;">
-                        <button
-                            class="btn-icon {% if c.is_active %}btn-icon-success{% else %}btn-icon-primary{% endif %}"
-                            onclick="{% if c.is_active %}deactivateConn({{ c.id }}){% else %}activateConn({{ c.id }}){% endif %}"
-                            title="{% if c.is_active %}Деактивировать{% else %}Активировать{% endif %}">
-                            <i data-lucide="{% if c.is_active %}check{% else %}power{% endif %}" class="icon-small"></i>
+                    <div class="flex gap-2 justify-end">
+                        <button class="btn-icon {{ 'btn-icon-success' if c.is_active else 'btn-icon-primary' }}"
+                            data-conn-id="{{ c.id }}" data-active="{{ 'true' if c.is_active else 'false' }}"
+                            onclick="toggleConn(this.dataset.connId, this.dataset.active === 'true')"
+                            title="{{ 'Деактивировать' if c.is_active else 'Активировать' }}">
+                            <i data-lucide="{{ 'check' if c.is_active else 'power' }}" class="icon-small"></i>
                         </button>
-                        <button class="btn-icon" onclick="showPrompts({{ c.id }}, '{{ c.name }}')" title="Промпты">
+                        <button class="btn-icon" onclick="showPrompts('{{ c.id }}', '{{ c.name }}')" title="Промпты">
                             <i data-lucide="terminal" class="icon-small"></i>
                         </button>
-                        <button class="btn-icon btn-icon-accent" onclick="checkConn({{ c.id }})" title="Проверить">
+                        <button class="btn-icon btn-icon-accent" onclick="checkConn('{{ c.id }}')" title="Проверить">
                             <i data-lucide="activity" class="icon-small"></i>
                         </button>
-                        <button class="btn-icon" onclick="editConn({{ c.id }})" title="Редактировать">
+                        <button class="btn-icon" onclick="editConn('{{ c.id }}')" title="Редактировать">
                             <i data-lucide="edit-3" class="icon-small"></i>
                         </button>
-                        <button class="btn-icon btn-icon-danger" onclick="deleteConn({{ c.id }})" title="Удалить">
+                        <button class="btn-icon btn-icon-danger" onclick="deleteConn('{{ c.id }}')" title="Удалить">
                             <i data-lucide="trash-2" class="icon-small"></i>
                         </button>
                     </div>
@@ -52,7 +52,7 @@
             </tr>
             {% else %}
             <tr>
-                <td colspan="5" style="text-align:center; color: var(--text-secondary);">Нет подключений</td>
+                <td colspan="5" class="text-center text-secondary">Нет подключений</td>
             </tr>
             {% endfor %}
         </tbody>
