@@ -15,6 +15,7 @@ BASE_DIR = Path(__file__).resolve().parent
 router = APIRouter(prefix="/admin", tags=["admin"])
 
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
+templates.env.globals.update(ts=lambda: int(time.time()))
 
 
 async def get_current_user(request: Request) -> str:
@@ -95,7 +96,6 @@ async def admin_page(
             "chats": chats,
             "prompt": System_prompt,
             "connections": connections,
-            "now_timestamp": int(time.time()),
             "providers": settings.PROVIDER_DEFAULT_URLS
         }
     )
