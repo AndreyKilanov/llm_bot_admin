@@ -112,11 +112,11 @@ async function loadWhitelist(platform) {
         const list = await api(`/whitelist?platform=${platform}`);
         const html = list.map(item => `
             <div class="whitelist-item">
-                <div style="flex-grow: 1;">
-                    <div style="font-weight: 500;">${item.title || 'Без названия'}</div>
-                    <div style="font-size: 0.85rem; color: var(--text-secondary); font-family: monospace;">${item.chat_id}</div>
+                <div class="flex-grow-1">
+                    <div class="font-medium">${item.title || 'Без названия'}</div>
+                    <div class="text-xs text-secondary font-mono">${item.chat_id}</div>
                 </div>
-                <div class="flex" style="gap: 0.5rem; align-items: center;">
+                <div class="flex gap-2 items-center">
                     <label class="switch" title="${item.is_active ? 'Активна' : 'Неактивна'}">
                         <input type="checkbox" ${item.is_active ? 'checked' : ''} onchange="toggleWhitelistItem(${item.id}, this.checked, '${platform}')">
                         <span class="slider"></span>
@@ -131,7 +131,7 @@ async function loadWhitelist(platform) {
         const containerId = `whitelist_list_${platform}`;
         const container = document.getElementById(containerId);
         if (container) {
-            container.innerHTML = html || "<p style='color:var(--text-secondary); text-align:center; padding: 1rem;'>Список пуст</p>";
+            container.innerHTML = html || "<p class='text-secondary text-center p-2'>Список пуст</p>";
             if (window.lucide) lucide.createIcons();
         }
     } catch (e) { console.error(e); }
