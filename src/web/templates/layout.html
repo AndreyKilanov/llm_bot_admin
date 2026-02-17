@@ -7,16 +7,27 @@
     <title>{% block title %}LLM Bot Admin{% endblock %}</title>
     <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500;600&display=swap"
         rel="stylesheet">
-    <link rel="stylesheet" href="/static/css/style.css?v={{ now_timestamp }}">
+    <link rel="stylesheet" href="/static/css/style.css?v={{ ts() }}">
     <link rel="icon" type="image/png" href="/static/images/favicon.png">
     <script src="https://unpkg.com/lucide@latest"></script>
-    <script src="/static/js/utils.js?v={{ now_timestamp }}" defer></script>
-    <script src="/static/js/theme.js?v={{ now_timestamp }}" defer></script>
-    <script src="/static/js/connections.js?v={{ now_timestamp }}" defer></script>
-    <script src="/static/js/prompts.js?v={{ now_timestamp }}" defer></script>
-    <script src="/static/js/settings.js?v={{ now_timestamp }}" defer></script>
-    <script src="/static/js/dropdown.js?v={{ now_timestamp }}" defer></script>
-    <script src="/static/js/main.js?v={{ now_timestamp }}" defer></script>
+    <script src="/static/js/utils.js?v={{ ts() }}" defer></script>
+    <script src="/static/js/theme.js?v={{ ts() }}" defer></script>
+    <script src="/static/js/connections.js?v={{ ts() }}" defer></script>
+    <script src="/static/js/prompts.js?v={{ ts() }}" defer></script>
+    <script src="/static/js/settings.js?v={{ ts() }}" defer></script>
+    <script src="/static/js/dropdown.js?v={{ ts() }}" defer></script>
+    <script src="/static/js/main.js?v={{ ts() }}" defer></script>
+    <style>
+        *::selection {
+            background-color: rgba(107, 70, 193, 0.6) !important;
+            color: #ffffff !important;
+        }
+
+        *::-moz-selection {
+            background-color: rgba(107, 70, 193, 0.6) !important;
+            color: #ffffff !important;
+        }
+    </style>
 </head>
 
 <body>
@@ -38,14 +49,13 @@
     <div class="container">
         <header>
             <div class="flex">
-                <i data-lucide="bot" style="color: var(--accent-primary); width: 24px; height: 24px;"></i>
+                <i data-lucide="bot" class="text-primary-accent icon-medium"></i>
                 <h1>LLM Bot Admin</h1>
             </div>
-            <div class="flex" style="gap: 0.25rem;">
+            <div class="flex gap-1">
                 {% if user %}
-                <span
-                    style="margin-right: 1rem; color: var(--text-secondary); display: flex; align-items: center; gap: 0.5rem;">
-                    <i data-lucide="user" style="width: 16px; height: 16px;"></i>
+                <span class="user-info">
+                    <i data-lucide="user" class="icon-tiny"></i>
                     {{ user }}
                 </span>
                 <a href="/admin/logout" class="btn btn-danger btn-sm">
