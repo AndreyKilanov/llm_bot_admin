@@ -40,6 +40,40 @@ main {
     width: 100%;
     max-width: 420px;
     padding: 2.5rem;
+    position: relative;
+    padding-bottom: 3.5rem;
+}
+
+.login-error {
+    position: absolute;
+    bottom: 1.25rem;
+    left: 0;
+    right: 0;
+    text-align: center;
+    color: var(--danger);
+    font-size: 0.9rem;
+    pointer-events: none;
+    animation: fadeIn 0.3s ease-out;
+}
+
+.pb-10 {
+    padding-bottom: 2.5rem !important;
+}
+
+.mb-1 {
+    margin-bottom: 0.25rem !important;
+}
+
+.mb-2 {
+    margin-bottom: 0.5rem !important;
+}
+
+.mb-8 {
+    margin-bottom: 2rem !important;
+}
+
+.block {
+    display: block !important;
 }
 
 .flex {
@@ -54,4 +88,12 @@ main {
 
 .justify-end {
     justify-content: flex-end;
+}
+
+.user-info {
+    margin-right: 1rem;
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
 }
