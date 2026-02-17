@@ -36,7 +36,7 @@ async function loadPrompts() {
         list.innerHTML = "";
 
         if (prompts.length === 0) {
-            list.innerHTML = "<p style='color:var(--text-secondary); text-align:center; padding: 2rem;'>Промптов пока нет. Добавьте свой первый промпт ниже.</p>";
+            list.innerHTML = "<p class='text-secondary text-center p-8'>Промптов пока нет. Добавьте свой первый промпт ниже.</p>";
             return;
         }
 
