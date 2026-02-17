@@ -47,7 +47,7 @@ h3 {
 }
 
 .mb-3 {
-    margin-bottom: 1rem !important;
+    margin-bottom: 0.75rem !important;
 }
 
 .mb-4 {
@@ -74,6 +74,34 @@ h3 {
     padding: 0.5rem !important;
 }
 
+.p-8 {
+    padding: 2rem !important;
+}
+
+.p-6 {
+    padding: 1rem 1.5rem !important;
+}
+
+.p-4 {
+    padding: 1rem !important;
+}
+
+.pt-3 {
+    padding-top: 0.75rem !important;
+}
+
+.mb-1 {
+    margin-bottom: 0.25rem !important;
+}
+
+.border-top {
+    border-top: 1px solid var(--border-color) !important;
+}
+
+.card-glass {
+    background: rgba(255, 255, 255, 0.02) !important;
+}
+
 .gap-1 {
     gap: 0.25rem !important;
 }
@@ -98,8 +126,33 @@ h3 {
     justify-content: center !important;
 }
 
+.flex-grow-1 {
+    flex-grow: 1 !important;
+}
+
+.flex-shrink-0 {
+    flex-shrink: 0 !important;
+}
+
+.pos-relative {
+    position: relative !important;
+}
+
+.w-full {
+    width: 100% !important;
+}
+
+.items-center {
+    align-items: center !important;
+}
+
 .text-accent {
     color: var(--accent-primary) !important;
+}
+
+.icon-md {
+    width: 18px !important;
+    height: 18px !important;
 }
 
 .text-accent-secondary {
@@ -114,14 +167,102 @@ h3 {
     color: var(--danger) !important;
 }
 
+.text-success {
+    color: var(--success) !important;
+}
+
+.text-telegram {
+    color: #3b82f6 !important;
+}
+
+.text-discord {
+    color: #8b5cf6 !important;
+}
+
+.text-warning {
+    color: #f59e0b !important;
+}
+
+.text-center {
+    text-align: center !important;
+}
+
+.text-right {
+    text-align: right !important;
+}
+
+.text-xs {
+    font-size: 0.85rem !important;
+}
+
+.opacity-80 {
+    opacity: 0.8 !important;
+}
+
+.text-primary-accent {
+    color: var(--accent-primary) !important;
+}
+
 .icon-tiny {
     width: 12px;
     height: 12px;
 }
 
+.icon-xs {
+    width: 14px !important;
+    height: 14px !important;
+}
+
+.icon-micro {
+    width: 12px !important;
+    height: 12px !important;
+}
+
+.font-mono {
+    font-family: monospace !important;
+}
+
+.font-medium {
+    font-weight: 500 !important;
+}
+
+.font-semibold {
+    font-weight: 600 !important;
+}
+
+.mr-1 {
+    margin-right: 0.25rem !important;
+}
+
+.mr-2 {
+    margin-right: 0.4rem !important;
+}
+
+.opacity-60 {
+    opacity: 0.6 !important;
+}
+
+.opacity-70 {
+    opacity: 0.7 !important;
+}
+
+.badge {
+    padding: 0.2rem 0.6rem;
+    border-radius: 10px;
+    font-size: 0.85rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.badge-primary {
+    background: rgba(107, 70, 193, 0.1);
+    color: var(--accent-primary);
+}
+
 .icon-small {
-    width: 22px;
-    height: 22px;
+    width: 18px;
+    height: 18px;
 }
 
 .icon-medium {
@@ -138,8 +279,8 @@ h3 {
 .card {
     background-color: var(--bg-secondary);
     border-radius: 20px;
-    padding: 2rem;
-    margin-bottom: 2rem;
+    padding: 1rem 1.25rem;
+    margin-bottom: 1rem;
     border: 1px solid var(--border-color);
     box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.3);
     animation: fadeIn 0.4s ease-out forwards;
@@ -279,6 +420,7 @@ label,
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    -webkit-backdrop-filter: none;
     backdrop-filter: none;
     cursor: var(--cursor-default) !important;
 }
@@ -402,6 +544,36 @@ textarea:focus {
     outline: none;
     border-color: var(--accent-primary);
     box-shadow: 0 0 0 4px rgba(107, 70, 193, 0.1);
+}
+
+.input-sm {
+    height: 32px !important;
+    padding: 0 1rem !important;
+    font-size: 0.85rem !important;
+    border-radius: 14px !important;
+}
+
+.btn-add-whitelist {
+    width: 56px !important;
+    height: 32px !important;
+    padding: 0 !important;
+    border-radius: 14px !important;
+}
+
+.flex-1 {
+    flex: 1 !important;
+}
+
+.pl-2 {
+    padding-left: 0.5rem !important;
+}
+
+.pl-4 {
+    padding-left: 1rem !important;
+}
+
+.pl-6 {
+    padding-left: 1.5rem !important;
 }
 
 /* Tables */
@@ -554,10 +726,11 @@ tr.active td:first-child {
     max-height: 85vh;
     display: flex;
     flex-direction: column;
+    overflow-x: hidden;
 }
 
 .modal-header {
-    padding: 1.5rem 2.5rem;
+    padding: 1rem 1.5rem;
     border-bottom: 1px solid var(--border-color);
     display: flex;
     justify-content: space-between;
@@ -565,16 +738,51 @@ tr.active td:first-child {
 }
 
 .modal-body {
-    padding: 2.5rem;
+    padding: 1rem 1.5rem;
     overflow-y: auto;
+    overflow-x: hidden;
     flex: 1;
 }
 
 .modal-footer {
-    padding: 1.5rem 2.5rem;
+    padding: 1rem 1.5rem;
     border-top: 1px solid var(--border-color);
     display: flex;
     justify-content: flex-end;
+}
+
+.settings-tabs {
+    display: flex;
+    gap: 0;
+    border-bottom: 1px solid var(--border-color);
+    background: rgba(0, 0, 0, 0.1);
+}
+
+.tab-item {
+    padding: 0.75rem 1.5rem;
+    cursor: pointer;
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    border-bottom: 2px solid transparent;
+    transition: all 0.2s;
+}
+
+.tab-item.active {
+    color: var(--accent-secondary);
+    border-bottom-color: var(--accent-secondary);
+    background: rgba(107, 70, 193, 0.05);
+}
+
+.tab-pane {
+    display: none;
+}
+
+.tab-pane.active {
+    display: block;
+    animation: fadeIn 0.3s ease-out;
 }
 
 .modal-actions {
@@ -781,11 +989,11 @@ input:checked+.slider:hover {
     justify-content: center;
     border-bottom: 1px solid var(--border-color);
     background: rgba(0, 0, 0, 0.1);
-    padding: 0 1rem;
+    padding: 0;
 }
 
 .tab-item {
-    padding: 1rem 1.5rem;
+    padding: 0.75rem 1.5rem;
     cursor: var(--cursor-default) !important;
     display: flex;
     align-items: center;
@@ -804,7 +1012,7 @@ input:checked+.slider:hover {
 .tab-item.active {
     color: var(--accent-secondary);
     border-bottom: 2px solid var(--accent-secondary);
-    background: transparent;
+    background: rgba(107, 70, 193, 0.05);
 }
 
 .tab-pane {
@@ -841,10 +1049,12 @@ input[type=number] {
     appearance: textfield;
 }
 
-.input-tiny {
-    width: 52px;
+.input-tiny,
+.input-tiny:focus,
+.input-tiny:active {
+    width: 52px !important;
     height: 28px;
-    padding: 0;
+    padding: 0 4px;
     border-radius: 14px;
     background: var(--bg-primary);
     border: 1.5px solid var(--border-color);
@@ -852,9 +1062,8 @@ input[type=number] {
     text-align: center;
     font-weight: 600;
     font-size: 0.85rem;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    line-height: 25px;
+    /* Adjusting for 28px height to center number */
 }
 
 /* Whitelist */
