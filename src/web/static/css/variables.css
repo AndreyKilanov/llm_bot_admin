@@ -15,6 +15,7 @@
     --cursor-default: url("data:image/svg+xml,%3Csvg width='24' height='24' viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M5 3.5L19.5 12L5 20.5V3.5Z' fill='%236b46c1' stroke='white' stroke-width='1.5' stroke-linejoin='round'/%3E%3C/svg%3E") 0 0, auto;
     --cursor-pointer: url("data:image/svg+xml,%3Csvg width='24' height='24' viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M9.5 5.5V11.5M9.5 5.5C9.5 4.39543 10.3954 3.5 11.5 3.5C12.6046 3.5 13.5 4.39543 13.5 5.5V10.5M13.5 5.5C13.5 5.22386 13.7239 5 14 5C14.2761 5 14.5 5.22386 14.5 5.5V10.5M14.5 5.5C14.5 5.22386 14.7239 5 15 5C15.2761 5 15.5 5.22386 15.5 5.5V11.5M15.5 11.5C15.5 14.8137 12.8137 17.5 9.5 17.5H9C5.68629 17.5 3 14.8137 3 11.5V9.5C3 8.39543 3.89543 7.5 5 7.5V7.5C6.10457 7.5 7 8.39543 7 9.5V11.5' stroke='%239f7aea' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") 10 0, pointer;
     --cursor-text: url("data:image/svg+xml,%3Csvg width='32' height='32' viewBox='0 0 32 32' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Crect x='15' y='6' width='1.5' height='20' fill='%239f7aea'/%3E%3C/svg%3E") 16 16, text;
+    --selection-bg: rgba(107, 70, 193, 0.4);
 }
 
 [data-theme="light"] {
@@ -27,4 +28,5 @@
     --accent-secondary: #805ad5;
     --accent-active: #553c9a;
     --border-color: #d1d5db;
+    --selection-bg: rgba(107, 70, 193, 0.2);
 }
