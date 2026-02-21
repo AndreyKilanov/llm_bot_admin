@@ -2,7 +2,7 @@ from tortoise import fields, models
 
 
 class User(models.Model):
-    id = fields.IntField(pk=True)
+    id = fields.IntField(primary_key=True)
     username = fields.CharField(max_length=255, unique=True)
     password_hash = fields.CharField(max_length=255)
     is_superuser = fields.BooleanField(default=False)
@@ -11,7 +11,7 @@ class User(models.Model):
         table = "users"
 
 class Setting(models.Model):
-    key = fields.CharField(max_length=255, pk=True)
+    key = fields.CharField(max_length=255, primary_key=True)
     value = fields.TextField()
 
     class Meta:
@@ -19,8 +19,8 @@ class Setting(models.Model):
 
 class ChatMessage(models.Model):
     """Модель для хранения сообщений чата."""
-    id = fields.IntField(pk=True)
-    chat_id = fields.BigIntField(index=True)
+    id = fields.IntField(primary_key=True)
+    chat_id = fields.BigIntField(db_index=True)
     platform = fields.CharField(max_length=20, default="telegram")
     chat_type = fields.CharField(max_length=20, default="private")  # private, group, supergroup, guild_text, etc.
     role = fields.CharField(max_length=50)  # user, assistant, system
@@ -33,7 +33,7 @@ class ChatMessage(models.Model):
 
 class LLMConnection(models.Model):
     """Модель для хранения параметров подключения к LLM провайдерам."""
-    id = fields.IntField(pk=True)
+    id = fields.IntField(primary_key=True)
     name = fields.CharField(max_length=255)
     provider = fields.CharField(max_length=50, default="openrouter")
     api_key = fields.TextField()
@@ -49,7 +49,7 @@ class LLMConnection(models.Model):
 
 class LLMPrompt(models.Model):
     """Модель для хранения системных промптов для конкретных подключений."""
-    id = fields.IntField(pk=True)
+    id = fields.IntField(primary_key=True)
     connection = fields.ForeignKeyField("models.LLMConnection", related_name="prompts")
     name = fields.CharField(max_length=255)
     content = fields.TextField()
@@ -64,8 +64,8 @@ class LLMPrompt(models.Model):
 
 class AllowedChat(models.Model):
     """Модель для хранения разрешенных чатов."""
-    id = fields.IntField(pk=True)
-    chat_id = fields.BigIntField(index=True)
+    id = fields.IntField(primary_key=True)
+    chat_id = fields.BigIntField(db_index=True)
     platform = fields.CharField(max_length=20, default="telegram")
     title = fields.CharField(max_length=255, null=True)
     is_active = fields.BooleanField(default=True)
