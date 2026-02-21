@@ -34,7 +34,7 @@ async def verify_session(request: Request):
 
 @router.get("/login", response_class=HTMLResponse)
 async def login_page(request: Request):
-    return templates.TemplateResponse("login.html", {"request": request, "no_header": True})
+    return templates.TemplateResponse(request, "login.html", {"no_header": True})
 
 
 @router.post("/login", response_class=HTMLResponse)
@@ -49,8 +49,9 @@ async def login_post(
         return response
     
     return templates.TemplateResponse(
+        request,
         "login.html", 
-        {"request": request, "error": "Неверные учетные данные", "no_header": True},
+        {"error": "Неверные учетные данные", "no_header": True},
         status_code=400
     )
 
@@ -88,9 +89,9 @@ async def admin_page(
     connections = await LLMService.list_connections()
     
     return templates.TemplateResponse(
+        request,
         "dashboard.html",
         {
-            "request": request,
             "user": user,
             "stats": stats,
             "chats": chats,
