@@ -2,3 +2,8 @@
 tortoise_config = "src.database.config.CONFIG"
 location = "./migrations"
 src_folder = "./."
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
+asyncio_mode = "auto"
