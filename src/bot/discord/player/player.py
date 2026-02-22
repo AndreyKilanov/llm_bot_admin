@@ -64,13 +64,25 @@ class MusicPlayer:
     def current_track(self) -> TrackData | None:
         return self.queue_manager.current_track
 
+    @current_track.setter
+    def current_track(self, value: TrackData | None) -> None:
+        self.queue_manager.current_track = value
+
     @property
     def current_index(self) -> int:
         return self.queue_manager.current_index
 
+    @current_index.setter
+    def current_index(self, value: int) -> None:
+        self.queue_manager.current_index = value
+
     @property
     def loop_mode(self) -> LoopMode:
         return self.queue_manager.loop_mode
+
+    @loop_mode.setter
+    def loop_mode(self, value: LoopMode) -> None:
+        self.queue_manager.loop_mode = value
 
     @property
     def voice_client(self) -> VoiceClient | None:
