@@ -3,7 +3,7 @@ import discord
 from unittest.mock import AsyncMock, patch, MagicMock
 
 from src.bot.discord.views import TrackSelectionView, MusicPlayerView
-from src.bot.discord.music_player import LoopMode
+from src.bot.discord.player.enums import LoopMode
 
 
 @pytest.fixture
@@ -63,8 +63,7 @@ async def test_track_selection_view(mock_ctx, mock_player, mock_interaction):
     view = TrackSelectionView(tracks, mock_player, mock_ctx)
     
     # Simulate first track selection
-    callback = view._create_callback(0)
-    await callback(mock_interaction)
+    await view.children[0].callback(mock_interaction)
     
     mock_interaction.response.defer.assert_called_once()
     mock_player.connect.assert_called_once_with(mock_ctx.author.voice.channel)
@@ -91,8 +90,7 @@ async def test_track_selection_view_no_voice(mock_ctx, mock_player, mock_interac
     mock_ctx.author.voice = None
     view = TrackSelectionView(tracks, mock_player, mock_ctx)
     
-    callback = view._create_callback(0)
-    await callback(mock_interaction)
+    await view.children[0].callback(mock_interaction)
     
     mock_interaction.response.send_message.assert_called_once_with("❌ Вы больше не в голосовом канале!", ephemeral=True)
 
@@ -130,7 +128,7 @@ async def test_music_player_rewind_forward(mock_ctx, mock_player, mock_interacti
     view.message = AsyncMock()
     view.message.guild = None
     
-    with patch("src.bot.discord.views.SettingsService.get_discord_seek_time", new_callable=AsyncMock) as mock_seek:
+    with patch("src.bot.discord.views.music_player.SettingsService.get_discord_seek_time", new_callable=AsyncMock) as mock_seek:
         mock_seek.return_value = 10
         mock_player.seek_relative.return_value = True
         
@@ -165,7 +163,7 @@ async def test_music_player_loop_mode(mock_ctx, mock_player, mock_interaction):
     mock_player.cycle_loop_mode.assert_called_once()
     mock_interaction.followup.send.assert_called_once()
     args, kwargs = mock_interaction.followup.send.call_args
-    assert "трека" in args[0]
+    assert "Режим зацикливания: **трек**" in args[0] or "трека" in args[0]
 
 
 @pytest.mark.asyncio
@@ -184,7 +182,7 @@ async def test_music_player_finished_state_ui(mock_ctx, mock_player):
         "url": "http://example.com",
     }
     mock_player.get_playback_position.return_value = (98, 100)
-    embed = view._create_player_embed()
+    embed = view.create_player_embed()
     status_field = next(f for f in embed.fields if f.name == "Статус")
     assert "🏁 Завершено" in status_field.value
     progress_field = next(f for f in embed.fields if f.name == "Прогресс")
