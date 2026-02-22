@@ -15,6 +15,7 @@ BASE_DIR = Path(__file__).resolve().parent
 router = APIRouter(prefix="/admin", tags=["admin"])
 
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
+templates.env.globals.update(ts=lambda: int(time.time()))
 
 
 async def get_current_user(request: Request) -> str:
@@ -33,7 +34,7 @@ async def verify_session(request: Request):
 
 @router.get("/login", response_class=HTMLResponse)
 async def login_page(request: Request):
-    return templates.TemplateResponse("login.html", {"request": request, "no_header": True})
+    return templates.TemplateResponse(request, "login.html", {"no_header": True})
 
 
 @router.post("/login", response_class=HTMLResponse)
@@ -48,8 +49,9 @@ async def login_post(
         return response
     
     return templates.TemplateResponse(
+        request,
         "login.html", 
-        {"request": request, "error": "Неверные учетные данные", "no_header": True},
+        {"error": "Неверные учетные данные", "no_header": True},
         status_code=400
     )
 
@@ -87,15 +89,14 @@ async def admin_page(
     connections = await LLMService.list_connections()
     
     return templates.TemplateResponse(
+        request,
         "dashboard.html",
         {
-            "request": request,
             "user": user,
             "stats": stats,
             "chats": chats,
             "prompt": System_prompt,
             "connections": connections,
-            "now_timestamp": int(time.time()),
             "providers": settings.PROVIDER_DEFAULT_URLS
         }
     )
@@ -371,6 +372,7 @@ async def api_get_global_settings(_: Annotated[str, Depends(verify_api_session)]
     dc_new_chats = await Setting.get_or_none(key="discord_allow_new_chats")
     dc_music = await Setting.get_or_none(key="discord_music_enabled")
     dc_seek = await Setting.get_or_none(key="discord_seek_time")
+    dc_respond = await Setting.get_or_none(key="discord_respond_everyone")
 
     return {
         "telegram": {
@@ -385,7 +387,8 @@ async def api_get_global_settings(_: Annotated[str, Depends(verify_api_session)]
             "allow_new_chats": str(dc_new_chats.value).lower() == "true" if dc_new_chats else False,
             "music_enabled": str(dc_music.value).lower() == "true" if dc_music else True,
             "memory_limit": int(dc_mem.value) if dc_mem else 10,
-            "seek_time": int(dc_seek.value) if dc_seek else 15
+            "seek_time": int(dc_seek.value) if dc_seek else 15,
+            "respond_everyone": str(dc_respond.value).lower() == "true" if dc_respond else False
         }
     }
 
@@ -411,5 +414,6 @@ async def api_set_global_settings(request: Request, _: Annotated[str, Depends(ve
         await Setting.update_or_create(key="discord_music_enabled", defaults={"value": str(dc.get("music_enabled", True))})
         await Setting.update_or_create(key="discord_memory_limit", defaults={"value": str(dc.get("memory_limit", 10))})
         await Setting.update_or_create(key="discord_seek_time", defaults={"value": str(dc.get("seek_time", 15))})
+        await Setting.update_or_create(key="discord_respond_everyone", defaults={"value": str(dc.get("respond_everyone", False))})
         
     return {"ok": True}

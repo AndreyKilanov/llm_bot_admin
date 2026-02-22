@@ -6,21 +6,6 @@ from src.web.app import create_app
 from httpx import AsyncClient, ASGITransport
 from unittest.mock import MagicMock
 
-@pytest.fixture(scope="function", autouse=True)
-async def init_db():
-    config = {
-        "connections": {"default": "sqlite://:memory:"},
-        "apps": {
-            "models": {
-                "models": ["src.database.models"],
-                "default_connection": "default",
-            }
-        },
-    }
-    await Tortoise.init(config=config)
-    await Tortoise.generate_schemas()
-    yield
-    await Tortoise.close_connections()
 
 @pytest.fixture
 async def client():
@@ -76,17 +61,22 @@ async def test_whitelist_api(client):
 @pytest.mark.asyncio
 async def test_settings_private_chat_api(client):
     # Default should be true
-    resp = await client.get("/admin/api/settings/private-chat")
+    resp = await client.get("/admin/api/settings/global")
     assert resp.status_code == 200
-    assert resp.json()["enabled"] is True
+    assert resp.json()["telegram"]["allow_private"] is True
     
     # Disable
-    resp = await client.post("/admin/api/settings/private-chat", json={"enabled": False})
+    payload = {
+        "telegram": {
+            "allow_private": False
+        }
+    }
+    resp = await client.post("/admin/api/settings/global", json=payload)
     assert resp.status_code == 200
     
     # Verify
-    resp = await client.get("/admin/api/settings/private-chat")
-    assert resp.json()["enabled"] is False
+    resp = await client.get("/admin/api/settings/global")
+    assert resp.json()["telegram"]["allow_private"] is False
     
     # Check DB directly
     setting = await Setting.get(key="allow_private_chat")

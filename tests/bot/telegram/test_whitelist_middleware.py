@@ -6,21 +6,7 @@ from tortoise import Tortoise
 from src.bot.telegram.middleware import WhitelistMiddleware
 from src.database.models import AllowedChat, Setting
 
-@pytest.fixture(scope="function", autouse=True)
-async def init_db():
-    config = {
-        "connections": {"default": "sqlite://:memory:"},
-        "apps": {
-            "models": {
-                "models": ["src.database.models"],
-                "default_connection": "default",
-            }
-        },
-    }
-    await Tortoise.init(config=config)
-    await Tortoise.generate_schemas()
-    yield
-    await Tortoise.close_connections()
+
 
 @pytest.mark.asyncio
 async def test_whitelist_private_chat_allowed_default():
@@ -71,6 +57,9 @@ async def test_whitelist_group_allowed():
 
 @pytest.mark.asyncio
 async def test_whitelist_group_not_allowed():
+    # Disable new chats to trigger whitelist check for groups
+    await Setting.create(key="telegram_allow_new_chats", value="False")
+    
     chat_id = -100987654321
     
     middleware = WhitelistMiddleware()

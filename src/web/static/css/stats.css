@@ -1,0 +1,112 @@
+/* Stats Module Styles */
+
+.stats-grid {
+    margin-top: 1.5rem;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 1.5rem;
+}
+
+/* Stat Cards Variants */
+.stat-card {
+    padding: 1.25rem;
+    border-radius: 20px;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.stat-card-purple {
+    background: rgba(107, 70, 193, 0.05);
+    border: 1px solid rgba(107, 70, 193, 0.1);
+}
+
+.stat-card-green {
+    background: rgba(16, 185, 129, 0.05);
+    border: 1px solid rgba(16, 185, 129, 0.1);
+}
+
+.stat-card-blue {
+    background: rgba(59, 130, 246, 0.05);
+    border: 1px solid rgba(59, 130, 246, 0.1);
+}
+
+.stat-card-orange {
+    background: rgba(245, 158, 11, 0.05);
+    border: 1px solid rgba(245, 158, 11, 0.1);
+}
+
+/* Stat Typography and Icons */
+.stat-header {
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+    margin-bottom: 0.75rem;
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+}
+
+.stat-header i,
+.stat-header svg,
+.stat-row-label i,
+.stat-row-label svg {
+    width: 24px !important;
+    height: 24px;
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.stat-content {
+    margin-left: calc(24px + 0.8rem);
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.25rem;
+}
+
+.stat-value {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    line-height: 1;
+    /* Tighten for consistent vertical alignment */
+}
+
+.stat-trend {
+    font-size: 0.85rem;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+.stat-trend i,
+.stat-trend svg {
+    display: inline-block;
+    vertical-align: middle;
+}
+
+/* Stat Lists */
+.stat-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.stat-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.95rem;
+}
+
+.stat-row-label {
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+    font-weight: 500;
+}
+
+.stat-row-value {
+    font-weight: 700;
+}

@@ -45,3 +45,20 @@ class SettingsService:
                 return 10
         return 10
 
+    @staticmethod
+    @log_function
+    async def is_discord_bot_enabled() -> bool:
+        """Проверяет, включен ли Discord бот в принципе."""
+        setting = await Setting.get_or_none(key="discord_bot_enabled")
+        if setting:
+            return str(setting.value).lower() == "true"
+        return False  # По умолчанию выключен
+
+    @staticmethod
+    @log_function
+    async def should_respond_to_everyone() -> bool:
+        """Проверяет, должен ли бот отвечать всем в чате или только на упоминания."""
+        setting = await Setting.get_or_none(key="discord_respond_everyone")
+        if setting:
+            return str(setting.value).lower() == "true"
+        return False  # По умолчанию только на упоминания

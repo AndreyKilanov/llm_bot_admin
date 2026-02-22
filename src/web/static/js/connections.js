@@ -29,6 +29,14 @@ async function deactivateConn(id) {
     } catch (e) { }
 }
 
+async function toggleConn(id, isActive) {
+    if (isActive) {
+        return deactivateConn(id);
+    } else {
+        return activateConn(id);
+    }
+}
+
 async function checkConn(id) {
     try {
         const res = await api("/llm/connections/" + id + "/check", "POST");

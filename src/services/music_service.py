@@ -184,6 +184,51 @@ class MusicService:
         except Exception as e:
             logger.error(f"Ошибка при получении информации о треке: {e}", exc_info=True)
             return None
+
+    async def get_playlist_info(self, url: str) -> list[dict]:
+        """
+        Получение списка треков из плейлиста YouTube.
+        
+        Args:
+            url: URL плейлиста на YouTube
+            
+        Returns:
+            Список словарей с информацией о треках
+        """
+        logger.info(f"Получение информации о плейлисте: {url}")
+        
+        try:
+            loop = asyncio.get_event_loop()
+            data = await loop.run_in_executor(
+                None,
+                lambda: self.ytdl.extract_info(url, download=False)
+            )
+            
+            if not data or "entries" not in data:
+                logger.warning(f"Плейлист пуст или не найден: {url}")
+                return []
+            
+            tracks = []
+            for entry in data["entries"]:
+                if entry:
+                    track_info = {
+                        "title": entry.get("title", "Неизвестно"),
+                        "url": entry.get("webpage_url") or entry.get("url", ""),
+                        "duration": entry.get("duration", 0),
+                        "thumbnail": entry.get("thumbnail", ""),
+                        "uploader": entry.get("uploader", "Неизвестно"),
+                        "id": entry.get("id", ""),
+                    }
+                    tracks.append(track_info)
+                    if track_info["url"]:
+                        self._info_cache[track_info["url"]] = track_info
+
+            logger.info(f"Загружено треков из плейлиста: {len(tracks)}")
+            return tracks
+            
+        except Exception as e:
+            logger.error(f"Ошибка при получении плейлиста: {e}", exc_info=True)
+            return []
     
     async def get_audio_source(self, url: str, start_time: int = 0):
         """

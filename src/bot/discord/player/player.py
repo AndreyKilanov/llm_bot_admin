@@ -1,0 +1,378 @@
+from __future__ import annotations
+
+import asyncio
+import logging
+import time
+from typing import TYPE_CHECKING, Final
+
+from src.services import music_service
+from .enums import LoopMode
+from .queue_manager import QueueManager, TrackData
+from .voice_handler import VoiceHandler
+
+if TYPE_CHECKING:
+    from discord import Client, Message, TextChannel, VoiceChannel, VoiceClient
+
+logger = logging.getLogger("discord.music_player")
+
+DEFAULT_DISCONNECT_DELAY: Final[int] = 600
+PLAYLIST_CLEAR_TIMEOUT: Final[int] = 1800
+UI_UPDATE_DELAY: Final[float] = 0.1
+
+
+class MusicPlayer:
+    """Главный класс-фасад для управления музыкальным плеером на сервере."""
+
+    def __init__(self, guild_id: int, bot: Client) -> None:
+        """Инициализация музыкального плеера.
+
+        Args:
+            guild_id: ID сервера.
+            bot: Экземпляр бота.
+        """
+        self.guild_id = guild_id
+        self.bot = bot
+        
+        self.queue_manager = QueueManager()
+        self.voice_handler = VoiceHandler(guild_id, bot)
+        
+        self.is_playing: bool = False
+        self.is_paused: bool = False
+        
+        self.start_time: float | None = None
+        self.pause_time: float | None = None
+        self.paused_duration: float = 0.0
+        
+        self.player_view: any = None
+        self.player_message: Message | None = None
+        self.text_channel: TextChannel | None = None
+        
+        self._play_lock: asyncio.Lock = asyncio.Lock()
+        self._disconnect_task: asyncio.Task | None = None
+        self._playlist_clear_task: asyncio.Task | None = None
+        self._preload_task: asyncio.Task | None = None
+
+        logger.info("MusicPlayer инициализирован для сервера %d", guild_id)
+
+    # ==================== Прокси-свойства для удобства ====================
+    
+    @property
+    def queue(self) -> list[TrackData]:
+        return self.queue_manager.queue
+
+    @property
+    def current_track(self) -> TrackData | None:
+        return self.queue_manager.current_track
+
+    @current_track.setter
+    def current_track(self, value: TrackData | None) -> None:
+        self.queue_manager.current_track = value
+
+    @property
+    def current_index(self) -> int:
+        return self.queue_manager.current_index
+
+    @current_index.setter
+    def current_index(self, value: int) -> None:
+        self.queue_manager.current_index = value
+
+    @property
+    def loop_mode(self) -> LoopMode:
+        return self.queue_manager.loop_mode
+
+    @loop_mode.setter
+    def loop_mode(self, value: LoopMode) -> None:
+        self.queue_manager.loop_mode = value
+
+    @property
+    def voice_client(self) -> VoiceClient | None:
+        return self.voice_handler.voice_client
+
+    @property
+    def is_connected(self) -> bool:
+        return self.voice_handler.is_connected
+
+    # ==================== Публичные методы управления ====================
+
+    async def connect(self, channel: VoiceChannel) -> bool:
+        success = await self.voice_handler.connect(channel)
+        if success and not self.is_playing:
+            self._schedule_disconnect()
+        return success
+
+    async def disconnect(self) -> None:
+        await self.stop()
+        await self.voice_handler.disconnect()
+        self._cancel_tasks()
+
+    def add_to_queue(self, tracks: list[TrackData]) -> None:
+        self.queue_manager.add(tracks)
+
+    async def play_next(self) -> bool:
+        async with self._play_lock:
+            track = self.queue_manager.get_next_track()
+            if not track:
+                return False
+            return await self._play_track(track)
+
+    async def play_previous(self) -> bool:
+        async with self._play_lock:
+            track = self.queue_manager.get_previous_track()
+            if not track:
+                return False
+            return await self._play_track(track)
+
+    async def play_from_start(self) -> bool:
+        async with self._play_lock:
+            if not self.queue:
+                return False
+            self.queue_manager.reset_index()
+            self.queue_manager.current_index = 0
+            return await self._play_track(self.queue[0])
+
+    def pause(self) -> bool:
+        if self.voice_client and self.voice_client.is_playing():
+            self.voice_client.pause()
+            self.is_paused = True
+            self.pause_time = time.time()
+            logger.info("Пауза на сервере %d", self.guild_id)
+            self._schedule_disconnect()
+            return True
+        return False
+
+    def resume(self) -> bool:
+        if self.voice_client and self.voice_client.is_paused():
+            self.voice_client.resume()
+            self.is_paused = False
+            self.is_playing = True
+            if self.pause_time:
+                self.paused_duration += time.time() - self.pause_time
+                self.pause_time = None
+            logger.info("Возобновление на сервере %d", self.guild_id)
+            self._cancel_tasks()
+            return True
+        return False
+
+    async def stop(self) -> None:
+        self.voice_handler.stop_vc()
+        self.queue_manager.clear()
+        self._reset_playback_state()
+        logger.info("Остановка и очистка на сервере %d", self.guild_id)
+        self._schedule_disconnect()
+
+    async def stop_playback(self) -> None:
+        self.voice_handler.stop_vc()
+        self._reset_playback_state()
+        self.queue_manager.reset_index()
+        logger.info("Остановка (без очистки) на сервере %d", self.guild_id)
+        self._schedule_disconnect()
+        self._schedule_playlist_clear()
+
+    async def seek_relative(self, seconds: int) -> bool:
+        if not self.current_track or not self.start_time:
+            return False
+        
+        async with self._play_lock:
+            current_pos, total_dur = self.get_playback_position()
+            new_pos = max(0, min(current_pos + seconds, total_dur))
+            if new_pos == current_pos:
+                return False
+            
+            try:
+                url = str(self.current_track.get("url", ""))
+                new_source = await music_service.get_audio_source(url, start_time=new_pos)
+                if not new_source:
+                    return False
+                
+                vc = self.voice_client
+                if vc:
+                    self.voice_handler.manual_skip = True
+                    vc.stop()
+                    await asyncio.sleep(UI_UPDATE_DELAY)
+                    
+                    now = time.time()
+                    self.start_time = now - new_pos
+                    self.paused_duration = 0
+                    if self.is_paused:
+                        self.pause_time = now
+                    
+                    vc.play(new_source, after=lambda e: self._after_playing_callback(e, vc))
+                    self.is_playing = True
+                    if self.is_paused:
+                        vc.pause()
+                    
+                    await self._update_player_ui()
+                    return True
+            except Exception as e:
+                logger.error("Ошибка перемотки на сервере %d: %s", self.guild_id, e)
+        return False
+
+    def get_playback_position(self) -> tuple[int, int]:
+        if not self.current_track or not self.start_time:
+            return (0, 0)
+        
+        duration = int(self.current_track.get("duration", 0))
+        if self.is_paused and self.pause_time:
+            elapsed = self.pause_time - self.start_time - self.paused_duration
+        else:
+            elapsed = time.time() - self.start_time - self.paused_duration
+
+        return (min(int(elapsed), duration), duration)
+
+    def cycle_loop_mode(self) -> LoopMode:
+        mode = self.queue_manager.cycle_loop_mode()
+        logger.info("Режим зацикливания сервера %d: %s", self.guild_id, mode)
+        return mode
+
+    def set_text_channel(self, channel: TextChannel) -> None:
+        """Установить канал для текстовых уведомлений.
+
+        Args:
+            channel: Текстовый канал.
+        """
+        self.text_channel = channel
+
+    def get_queue_info(self) -> dict:
+        """Получить сводную информацию об очереди.
+
+        Returns:
+            dict: Словарь с данными очереди (треки, индекс, общее кол-во).
+        """
+        return {
+            'tracks': self.queue,
+            'current_index': self.current_index,
+            'total': len(self.queue),
+            'current_track': self.current_track,
+            'loop_mode': self.loop_mode
+        }
+
+    # ==================== Внутренняя логика ====================
+
+    async def _play_track(self, track: TrackData) -> bool:
+        if not self.is_connected:
+            return False
+
+        vc: VoiceClient = self.voice_client
+        try:
+            self.voice_handler.stop_vc()
+            await asyncio.sleep(UI_UPDATE_DELAY)
+
+            title = track.get("title", "Unknown")
+            url = str(track.get("url", ""))
+            
+            logger.info("Воспроизведение трека на сервере %d: %s", self.guild_id, title)
+            audio_source = await music_service.get_audio_source(url)
+
+            if not audio_source:
+                await self._notify_error(f"⚠️ Трек **{title}** недоступен.")
+                return await self.play_next()
+
+            self.queue_manager.current_track = track
+            self.is_playing = True
+            self.is_paused = False
+            self.start_time = time.time()
+            self.pause_time = None
+            self.paused_duration = 0.0
+            
+            self._cancel_tasks()
+
+            vc.play(audio_source, after=lambda e: self._after_playing_callback(e, vc))
+            
+            if self._preload_task:
+                self._preload_task.cancel()
+            self._preload_task = asyncio.create_task(self._preload_next())
+            
+            await self._update_player_ui()
+            return True
+
+        except Exception as e:
+            logger.error("Ошибка воспроизведения на сервере %d: %s", self.guild_id, e)
+            await self._notify_error(f"⚠️ Ошибка трека **{track.get('title')}**.")
+            return await self.play_next()
+
+    def _after_playing_callback(self, error: Exception | None, vc: VoiceClient) -> None:
+        if error:
+            logger.error("Ошибка потока на сервере %d: %s", self.guild_id, error)
+        asyncio.run_coroutine_threadsafe(self._handle_track_end(), vc.loop)
+
+    async def _handle_track_end(self) -> None:
+        self.is_playing = False
+        if self.voice_handler.manual_skip:
+            self.voice_handler.manual_skip = False
+            return
+
+        if not await self.play_next():
+            logger.info("Очередь сервера %d пуста", self.guild_id)
+            await self._update_player_ui()
+            self._schedule_disconnect()
+            self._schedule_playlist_clear()
+
+    async def _preload_next(self) -> None:
+        try:
+            if self.current_index + 1 < len(self.queue):
+                next_track = self.queue[self.current_index + 1]
+                await music_service.get_track_info(str(next_track.get("url", "")))
+        except Exception as e:
+            logger.error("Ошибка предзагрузки на сервере %d: %s", self.guild_id, e)
+
+    async def _notify_error(self, message: str) -> None:
+        if self.text_channel:
+            try:
+                await self.text_channel.send(message)
+            except Exception:
+                pass
+
+    def _reset_playback_state(self) -> None:
+        self.is_playing = False
+        self.is_paused = False
+        self.start_time = None
+        self.pause_time = None
+        self.paused_duration = 0.0
+
+    def _cancel_tasks(self) -> None:
+        for task in [self._disconnect_task, self._playlist_clear_task]:
+            if task:
+                task.cancel()
+
+    def _schedule_disconnect(self) -> None:
+        if self._disconnect_task:
+            self._disconnect_task.cancel()
+
+        async def _delay() -> None:
+            await asyncio.sleep(DEFAULT_DISCONNECT_DELAY)
+            # Отключаемся, если бот не играет ИЛИ если он на паузе (простой)
+            if not self.is_playing or self.is_paused:
+                logger.info("Таймаут простоя (10 мин) на сервере %d. Отключение.", self.guild_id)
+                await self.voice_handler.disconnect()
+
+        self._disconnect_task = asyncio.create_task(_delay())
+
+    def _schedule_playlist_clear(self) -> None:
+        if self._playlist_clear_task:
+            self._playlist_clear_task.cancel()
+
+        async def _delay() -> None:
+            await asyncio.sleep(PLAYLIST_CLEAR_TIMEOUT)
+            # Очищаем очередь, если бот не играет ИЛИ если он на паузе слишком долго
+            if not self.is_playing or self.is_paused:
+                logger.info("Таймаут хранения очереди (30 мин) на сервере %d. Очистка.", self.guild_id)
+                self.queue_manager.clear()
+                await self._update_player_ui()
+
+        self._playlist_clear_task = asyncio.create_task(_delay())
+
+    async def _update_player_ui(self) -> None:
+        if self.text_channel and self.player_view:
+            try:
+                await self.player_view._update_player_message()
+            except Exception:
+                pass
+
+    async def clear_player_ui(self) -> None:
+        if self.player_message:
+            try:
+                await self.player_message.edit(content="⏹️ Остановлено.", embed=None, view=None)
+            except Exception:
+                pass
+            self.player_message = None
+            self.player_view = None
