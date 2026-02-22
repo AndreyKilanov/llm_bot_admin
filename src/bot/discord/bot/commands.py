@@ -1,0 +1,245 @@
+import discord
+from discord.ext import commands
+from typing import Optional
+
+from src.bot.discord.player import MusicPlayer, PlayerFactory
+from src.bot.discord.views import MusicPlayerView, TrackSelectionView
+from src.services import music_service, SettingsService
+from .constants import (
+    ICON_SEARCH, ICON_MUSIC, ICON_SKIP, ICON_PREV, 
+    ICON_PAUSE, ICON_RESUME, ICON_STOP, ICON_QUEUE,
+    ICON_ROBOT, ICON_SPARKLE, ICON_INFO, ICON_ERR,
+    MSG_BOT_DISABLED, MSG_MUSIC_DISABLED, MSG_VOICE_REQUIRED,
+    MSG_SEARCH_FAIL, MSG_CONN_FAIL, MSG_LOAD_FAIL, MSG_INVALID_URL,
+    MSG_NOTHING_PLAYING, MSG_PLAYER_MISSING, MSG_QUEUE_EMPTY
+)
+
+class CommandHandlers:
+    """Класс, содержащий логику обработки команд Discord бота."""
+
+    @staticmethod
+    def get_player(bot: commands.Bot, guild_id: int) -> MusicPlayer:
+        """Возвращает плеер для конкретного сервера."""
+        return PlayerFactory.get_player(guild_id, bot)
+
+    @staticmethod
+    async def verify_ready(ctx: commands.Context) -> Optional[discord.VoiceChannel]:
+        """Проверяет настройки и состояние голоса автора."""
+        if not await SettingsService.is_discord_bot_enabled():
+            await ctx.send(MSG_BOT_DISABLED)
+            return None
+
+        if not await SettingsService.is_discord_music_enabled():
+            await ctx.send(MSG_MUSIC_DISABLED)
+            return None
+
+        if not ctx.author.voice:
+            await ctx.send(MSG_VOICE_REQUIRED)
+            return None
+
+        return ctx.author.voice.channel
+
+    @classmethod
+    async def start_playback_sequence(cls, bot: commands.Bot, ctx: commands.Context, tracks: list, channel: discord.VoiceChannel) -> None:
+        """Инициализация проигрывания списка треков."""
+        player = cls.get_player(bot, ctx.guild.id)
+        player.set_text_channel(ctx.channel)
+
+        if not await player.connect(channel):
+            await ctx.send(MSG_CONN_FAIL)
+            return
+
+        player.add_to_queue(tracks)
+
+        if not player.is_playing:
+            await player.play_from_start()
+
+        await cls.send_player_ui(ctx, player)
+
+    @staticmethod
+    async def send_player_ui(ctx: commands.Context, player: MusicPlayer) -> None:
+        """Отправка постоянного сообщения управления плеером."""
+        if not player.current_track:
+            return
+
+        view = MusicPlayerView(player, ctx)
+        embed = view.create_player_embed()
+        message = await ctx.send(embed=embed, view=view)
+        
+        player.player_view = view
+        player.player_message = message
+        view.message = message
+        
+        await view.start_auto_update()
+
+    @classmethod
+    async def handle_playmusic(cls, bot: commands.Bot, ctx: commands.Context, query: str) -> None:
+        """Поиск треков и инициализация воспроизведения."""
+        v_channel = await cls.verify_ready(ctx)
+        if not v_channel:
+            return
+
+        await ctx.send(f"{ICON_SEARCH} Поиск: **{query}**...")
+        tracks = await music_service.search_tracks(query, max_results=5)
+
+        if not tracks:
+            await ctx.send(MSG_SEARCH_FAIL)
+            return
+
+        if len(tracks) == 1:
+            await cls.start_playback_sequence(bot, ctx, tracks, v_channel)
+            return
+
+        embed = discord.Embed(
+            title=f"{ICON_MUSIC} Результаты поиска",
+            description="Выберите подходящий трек из списка ниже:",
+            color=discord.Color.blue()
+        )
+
+        for i, track in enumerate(tracks, 1):
+            length = music_service.format_duration(track["duration"])
+            embed.add_field(
+                name=f"{i}. {track['title'][:100]}",
+                value=f"Канал: {track['uploader']} | {length}",
+                inline=False
+            )
+
+        player = cls.get_player(bot, ctx.guild.id)
+        view = TrackSelectionView(tracks, player, ctx)
+        message = await ctx.send(embed=embed, view=view)
+        view.message = message
+
+    @classmethod
+    async def handle_link(cls, bot: commands.Bot, ctx: commands.Context, url: str) -> None:
+        """Загрузка по прямой ссылке."""
+        v_channel = await cls.verify_ready(ctx)
+        if not v_channel:
+            return
+            
+        if not music_service.is_valid_url(url):
+            await ctx.send(MSG_INVALID_URL)
+            return
+
+        await ctx.send(f"{ICON_SEARCH} Загрузка: <{url}>...")
+        info = await music_service.get_track_info(url)
+        
+        if not info:
+            await ctx.send(MSG_LOAD_FAIL)
+            return
+
+        await cls.start_playback_sequence(bot, ctx, [info], v_channel)
+
+    @classmethod
+    async def handle_skip(cls, bot: commands.Bot, ctx: commands.Context) -> None:
+        if not await cls.verify_ready(ctx): return
+        player = cls.get_player(bot, ctx.guild.id)
+        if not player or not player.is_playing:
+            await ctx.send(MSG_NOTHING_PLAYING)
+            return
+        if await player.play_next():
+            await ctx.send(f"{ICON_SKIP} Следующий трек.")
+        else:
+            await ctx.send(f"{ICON_ERR} Очередь окончена.")
+
+    @classmethod
+    async def handle_previous(cls, bot: commands.Bot, ctx: commands.Context) -> None:
+        if not await cls.verify_ready(ctx): return
+        player = cls.get_player(bot, ctx.guild.id)
+        if not player or not player.is_playing:
+            await ctx.send(MSG_NOTHING_PLAYING)
+            return
+        if await player.play_previous():
+            await ctx.send(f"{ICON_PREV} Предыдущий трек.")
+        else:
+            await ctx.send(f"{ICON_ERR} Это первый трек.")
+
+    @classmethod
+    async def handle_pause(cls, bot: commands.Bot, ctx: commands.Context) -> None:
+        if not await cls.verify_ready(ctx): return
+        player = cls.get_player(bot, ctx.guild.id)
+        if not player or not player.is_playing:
+            await ctx.send(MSG_NOTHING_PLAYING)
+            return
+        if player.pause():
+            await ctx.send(f"{ICON_PAUSE} Музыка на паузе.")
+        else:
+            await ctx.send(f"{ICON_ERR} Ошибка при попытке паузы.")
+
+    @classmethod
+    async def handle_resume(cls, bot: commands.Bot, ctx: commands.Context) -> None:
+        if not await cls.verify_ready(ctx): return
+        player = cls.get_player(bot, ctx.guild.id)
+        if not player:
+            await ctx.send(MSG_PLAYER_MISSING)
+            return
+        if player.resume():
+            await ctx.send(f"{ICON_RESUME} Продолжаем воспроизведение.")
+        else:
+            await ctx.send(f"{ICON_ERR} Плеер был активен.")
+
+    @classmethod
+    async def handle_stop(cls, bot: commands.Bot, ctx: commands.Context) -> None:
+        if not await cls.verify_ready(ctx): return
+        player = cls.get_player(bot, ctx.guild.id)
+        if not player:
+            await ctx.send(MSG_PLAYER_MISSING)
+            return
+        await player.stop()
+        await player.disconnect()
+        PlayerFactory.remove_player(ctx.guild.id)
+        await ctx.send(f"{ICON_STOP} Плеер остановлен.")
+
+    @classmethod
+    async def handle_queue(cls, bot: commands.Bot, ctx: commands.Context) -> None:
+        if not await cls.verify_ready(ctx): return
+        player = cls.get_player(bot, ctx.guild.id)
+        if not player or not player.queue:
+            await ctx.send(MSG_QUEUE_EMPTY)
+            return
+        embed = discord.Embed(
+            title=f"{ICON_QUEUE} Список треков",
+            description=f"Всего в очереди: **{len(player.queue)}**",
+            color=discord.Color.green()
+        )
+        for i, track in enumerate(player.queue[:10]):
+            prefix = f"{ICON_RESUME} " if i == player.current_index else ""
+            dur = music_service.format_duration(track["duration"])
+            embed.add_field(name=f"{prefix}{i + 1}. {track['title'][:100]}", value=f"{track['uploader']} | {dur}", inline=False)
+        if len(player.queue) > 10:
+            embed.set_footer(text=f"... и еще {len(player.queue) - 10} треков")
+        await ctx.send(embed=embed)
+
+    @classmethod
+    async def handle_nowplaying(cls, bot: commands.Bot, ctx: commands.Context) -> None:
+        if not await cls.verify_ready(ctx): return
+        player = cls.get_player(bot, ctx.guild.id)
+        if not player or not player.current_track:
+            await ctx.send(MSG_NOTHING_PLAYING)
+            return
+        track = player.current_track
+        dur = music_service.format_duration(track["duration"])
+        embed = discord.Embed(title=f"{ICON_MUSIC} Сейчас играет", description=f"**{track['title']}**", color=discord.Color.purple())
+        embed.add_field(name="Автор", value=track['uploader'], inline=True)
+        embed.add_field(name="Длительность", value=dur, inline=True)
+        if track.get('thumbnail'): embed.set_thumbnail(url=track['thumbnail'])
+        status = "Пауза" if player.is_paused else "Играет"
+        status_icon = ICON_PAUSE if player.is_paused else ICON_RESUME
+        embed.add_field(name="Статус", value=f"{status_icon} {status}", inline=False)
+        embed.set_footer(text=f"Трек {player.current_index + 1} из {len(player.queue)}")
+        await ctx.send(embed=embed)
+
+    @staticmethod
+    async def handle_help(ctx: commands.Context) -> None:
+        embed = discord.Embed(
+            title=f"{ICON_ROBOT} LLM Bot — Справка",
+            description=(
+                f"Я — мультифункциональный бот с AI и музыкой! {ICON_SPARKLE}\n\n"
+                "**🧠 Чат с ИИ**\n• Отвечаю в ЛС или по упоминанию `@Бот`.\n\n"
+                "**🎵 Плеер**\n• `/playmusic` — поиск\n• `/link` — по ссылке\n• `/stop` — выход\n\n"
+                "**⚙️ Управление**\n• `/pause` / `/resume`\n• `/skip` / `/previous`"
+            ),
+            color=discord.Color.from_rgb(88, 101, 242)
+        )
+        repo_url = "https://github.com/AndreyKilanov/llm_bot_admin/tree/dev"
+        embed.description += f"\n\n-# [{ICON_INFO} GitHub Repository]({repo_url})"
+        await ctx.send(embed=embed)
