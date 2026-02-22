@@ -74,6 +74,7 @@ async function loadGlobalSettings() {
         const dcEnabled = $('#setting_dc_enabled'); if (dcEnabled) dcEnabled.checked = res.discord.enabled;
         const dcDm = $('#setting_dc_dm'); if (dcDm) dcDm.checked = res.discord.allow_dms;
         const dcNew = $('#setting_dc_new_chats'); if (dcNew) dcNew.checked = res.discord.allow_new_chats;
+        const dcRespond = $('#setting_dc_respond'); if (dcRespond) dcRespond.checked = res.discord.respond_everyone;
         const dcMusic = $('#setting_dc_music'); if (dcMusic) dcMusic.checked = res.discord.music_enabled;
         const dcMem = $('#setting_dc_memory'); if (dcMem) dcMem.value = res.discord.memory_limit;
         const dcSeek = $('#setting_dc_seek'); if (dcSeek) dcSeek.value = res.discord.seek_time;
@@ -93,6 +94,7 @@ async function saveSettings() {
             enabled: $('#setting_dc_enabled')?.checked || false,
             allow_dms: $('#setting_dc_dm')?.checked || false,
             allow_new_chats: $('#setting_dc_new_chats')?.checked || false,
+            respond_everyone: $('#setting_dc_respond')?.checked || false,
             music_enabled: $('#setting_dc_music')?.checked || false,
             memory_limit: parseInt($('#setting_dc_memory')?.value) || 10,
             seek_time: parseInt($('#setting_dc_seek')?.value) || 10
