@@ -169,11 +169,10 @@ async def test_auto_play_next_retains_current_track(discord_player, mock_voice_c
     discord_player.current_track = track
     discord_player.is_playing = True
     
-    # Имитируем завершение трека и отсутствие следующего
     with patch.object(discord_player, "play_next", new_callable=AsyncMock) as mock_play_next:
         mock_play_next.return_value = False
         
         await discord_player._auto_play_next()
         
         assert discord_player.is_playing is False
-        assert discord_player.current_track == track # Должен остаться!
+        assert discord_player.current_track == track
