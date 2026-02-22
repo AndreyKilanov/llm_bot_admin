@@ -1,6 +1,6 @@
 import pytest
 from unittest.mock import AsyncMock, patch, MagicMock
-from src.bot.discord.music_player import LoopMode
+from src.bot.discord.player.enums import LoopMode
 
 @pytest.mark.asyncio
 async def test_add_to_queue(discord_player):
@@ -39,7 +39,7 @@ async def test_connect(discord_player, mock_voice_channel):
     # Success
     result = await discord_player.connect(mock_voice_channel)
     assert result is True
-    assert discord_player._voice_channel == mock_voice_channel
+    assert discord_player.voice_handler._voice_channel == mock_voice_channel
 
 @pytest.mark.asyncio
 async def test_disconnect(discord_player):
@@ -50,7 +50,7 @@ async def test_disconnect(discord_player):
     
     await discord_player.disconnect()
     assert vc.disconnect_called == 1
-    assert discord_player._voice_channel is None
+    assert discord_player.voice_handler._voice_channel is None
     assert discord_player.is_playing is False
 
 @pytest.mark.asyncio
@@ -113,7 +113,7 @@ async def test_loop_mode_logic(discord_player, mock_voice_channel):
     tracks = [{"title": f"T{i}", "url": f"u{i}", "duration": 100, "uploader": "U"} for i in range(3)]
     discord_player.add_to_queue(tracks)
     
-    with patch("src.bot.discord.music_player.music_service.get_audio_source", new_callable=AsyncMock) as mock_get_source:
+    with patch("src.bot.discord.player.player.music_service.get_audio_source", new_callable=AsyncMock) as mock_get_source:
         mock_get_source.return_value = MagicMock()
         await discord_player.play_from_start()
         assert discord_player.current_index == 0
@@ -144,7 +144,7 @@ async def test_seek_relative(discord_player, mock_voice_channel):
     track = {"title": "T", "url": "u", "duration": 100, "uploader": "U"}
     discord_player.add_to_queue([track])
     
-    with patch("src.bot.discord.music_player.music_service.get_audio_source", new_callable=AsyncMock) as mock_get_source:
+    with patch("src.bot.discord.player.player.music_service.get_audio_source", new_callable=AsyncMock) as mock_get_source:
         mock_get_source.return_value = MagicMock()
         await discord_player.play_from_start()
         
@@ -172,7 +172,7 @@ async def test_auto_play_next_retains_current_track(discord_player, mock_voice_c
     with patch.object(discord_player, "play_next", new_callable=AsyncMock) as mock_play_next:
         mock_play_next.return_value = False
         
-        await discord_player._auto_play_next()
+        await discord_player._handle_track_end()
         
         assert discord_player.is_playing is False
         assert discord_player.current_track == track
