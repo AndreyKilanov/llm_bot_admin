@@ -5,7 +5,7 @@ from discord import Message
 
 from src.database.models import AllowedChat, Setting
 from src.exceptions import ConfigurationError
-from src.services import HistoryService, LLMService
+from src.services import HistoryService, LLMService, SettingsService
 
 logger = logging.getLogger("discord.handlers")
 
@@ -35,8 +35,7 @@ class MessageHandler:
         if message.content.startswith("/"):
             return
 
-        enabled_setting = await Setting.get_or_none(key="discord_bot_enabled")
-        if enabled_setting and str(enabled_setting.value).lower() != "true":
+        if not await SettingsService.is_discord_bot_enabled():
             return
 
         chat_id = message.channel.id
@@ -64,14 +63,21 @@ class MessageHandler:
                 new_chats_setting.value).lower() == "true" if new_chats_setting else False
 
             if not allow_new_chats:
-                return
+                if not is_dm and not is_mentioned:
+                    return
+                
+                # Check if we should respond to everyone OR if it's a mention/DM
+                respond_everyone = await SettingsService.should_respond_to_everyone()
+                if not (respond_everyone or is_mentioned or is_dm):
+                    return
 
             if is_dm:
                 dm_setting = await Setting.get_or_none(key="discord_allow_dms")
                 if not dm_setting or str(dm_setting.value).lower() != "true":
                     return
             else:
-                if not is_mentioned:
+                respond_everyone = await SettingsService.should_respond_to_everyone()
+                if not (respond_everyone or is_mentioned):
                     return
 
         if not is_dm and is_guild_active and not is_channel_active:
@@ -82,6 +88,11 @@ class MessageHandler:
                           "title": f"{message.guild.name} / {message.channel.name}"}
             )
             logger.info(f"Auto-activated channel {chat_id} because guild {guild_id} is whitelisted")
+
+        if not is_dm:
+            respond_everyone = await SettingsService.should_respond_to_everyone()
+            if not (respond_everyone or is_mentioned):
+                return
 
         user_text = message.clean_content
 
