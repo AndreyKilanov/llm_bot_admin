@@ -163,6 +163,10 @@ class DiscordBot:
 
     async def _handle_playmusic(self, ctx: commands.Context, query: str):
         """Обработка команды /playmusic."""
+        if not await SettingsService.is_discord_bot_enabled():
+            await ctx.send("❌ Discord бот отключен в настройках администратора.")
+            return
+
         if not await SettingsService.is_discord_music_enabled():
             await ctx.send("❌ Музыкальный плеер отключен в настройках администратора.")
             return
@@ -218,6 +222,10 @@ class DiscordBot:
 
     async def _handle_link(self, ctx: commands.Context, url: str):
         """Обработка команды /link."""
+        if not await SettingsService.is_discord_bot_enabled():
+            await ctx.send("❌ Discord бот отключен в настройках администратора.")
+            return
+
         if not await SettingsService.is_discord_music_enabled():
             await ctx.send("❌ Музыкальный плеер отключен в настройках администратора.")
             return
@@ -257,6 +265,10 @@ class DiscordBot:
 
     async def _handle_skip(self, ctx: commands.Context):
         """Обработка команды /skip."""
+        if not await SettingsService.is_discord_bot_enabled():
+            await ctx.send("❌ Discord бот отключен.")
+            return
+
         if not await SettingsService.is_discord_music_enabled():
             await ctx.send("❌ Музыкальный плеер отключен.")
             return
@@ -274,6 +286,10 @@ class DiscordBot:
 
     async def _handle_previous(self, ctx: commands.Context):
         """Обработка команды /previous."""
+        if not await SettingsService.is_discord_bot_enabled():
+            await ctx.send("❌ Discord бот отключен.")
+            return
+
         if not await SettingsService.is_discord_music_enabled():
             await ctx.send("❌ Музыкальный плеер отключен.")
             return
@@ -291,6 +307,10 @@ class DiscordBot:
 
     async def _handle_pause(self, ctx: commands.Context):
         """Обработка команды /pause."""
+        if not await SettingsService.is_discord_bot_enabled():
+            await ctx.send("❌ Discord бот отключен.")
+            return
+
         if not await SettingsService.is_discord_music_enabled():
             await ctx.send("❌ Музыкальный плеер отключен.")
             return
@@ -308,6 +328,10 @@ class DiscordBot:
 
     async def _handle_resume(self, ctx: commands.Context):
         """Обработка команды /resume."""
+        if not await SettingsService.is_discord_bot_enabled():
+            await ctx.send("❌ Discord бот отключен.")
+            return
+
         if not await SettingsService.is_discord_music_enabled():
             await ctx.send("❌ Музыкальный плеер отключен.")
             return
@@ -325,6 +349,10 @@ class DiscordBot:
 
     async def _handle_stop(self, ctx: commands.Context):
         """Обработка команды /stop."""
+        if not await SettingsService.is_discord_bot_enabled():
+            await ctx.send("❌ Discord бот отключен.")
+            return
+
         if not await SettingsService.is_discord_music_enabled():
             await ctx.send("❌ Музыкальный плеер отключен.")
             return
@@ -342,6 +370,10 @@ class DiscordBot:
 
     async def _handle_queue(self, ctx: commands.Context):
         """Обработка команды /queue."""
+        if not await SettingsService.is_discord_bot_enabled():
+            await ctx.send("❌ Discord бот отключен.")
+            return
+
         if not await SettingsService.is_discord_music_enabled():
             await ctx.send("❌ Музыкальный плеер отключен.")
             return
@@ -375,6 +407,10 @@ class DiscordBot:
 
     async def _handle_nowplaying(self, ctx: commands.Context):
         """Обработка команды /nowplaying."""
+        if not await SettingsService.is_discord_bot_enabled():
+            await ctx.send("❌ Discord бот отключен.")
+            return
+
         if not await SettingsService.is_discord_music_enabled():
             await ctx.send("❌ Музыкальный плеер отключен.")
             return
