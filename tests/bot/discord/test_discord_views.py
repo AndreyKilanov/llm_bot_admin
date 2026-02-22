@@ -166,3 +166,35 @@ async def test_music_player_loop_mode(mock_ctx, mock_player, mock_interaction):
     mock_interaction.followup.send.assert_called_once()
     args, kwargs = mock_interaction.followup.send.call_args
     assert "трека" in args[0]
+
+
+@pytest.mark.asyncio
+async def test_music_player_finished_state_ui(mock_ctx, mock_player):
+    """Тест отображения UI при завершении плейлиста."""
+    view = MusicPlayerView(mock_player, mock_ctx)
+    view.message = AsyncMock()
+    view.message.guild = None
+    
+    # Имитируем состояние завершения: не играет, не на паузе
+    mock_player.is_playing = False
+    mock_player.is_paused = False
+    mock_player.current_track = {
+        "title": "Finished Song",
+        "uploader": "Artist",
+        "duration": 100,
+        "url": "http://example.com",
+    }
+    mock_player.get_playback_position.return_value = (98, 100) # Позиция почти в конце
+    
+    embed = view._create_player_embed()
+    
+    # Проверяем статус
+    status_field = next(f for f in embed.fields if f.name == "Статус")
+    assert "🏁 Завершено" in status_field.value
+    
+    # Проверяем прогресс-бар (должен быть 100%)
+    progress_field = next(f for f in embed.fields if f.name == "Прогресс")
+    assert "`1:40`" in progress_field.value # 100 секунд
+    # В нашей логике при завершении progress = 1.0, значит bar_length(15) * 1.0 = 15
+    # Ожидаем заполненную полоску с точкой в конце
+    assert "●" in progress_field.value
