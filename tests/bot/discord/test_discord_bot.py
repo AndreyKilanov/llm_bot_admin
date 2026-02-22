@@ -91,3 +91,36 @@ async def test_handle_stop(mock_bot_instance, mock_discord_ctx):
         await CommandHandlers.handle_stop(mock_bot_instance.bot, mock_discord_ctx)
         mock_player.stop.assert_called_once()
         mock_player.disconnect.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_handle_playlist(mock_bot_instance, mock_discord_ctx):
+    with patch("src.services.SettingsService.is_discord_bot_enabled", new_callable=AsyncMock, return_value=True), \
+         patch("src.services.SettingsService.is_discord_music_enabled", new_callable=AsyncMock, return_value=True), \
+         patch("src.bot.discord.bot.commands.music_service.get_playlist_info", new_callable=AsyncMock) as mock_get_playlist, \
+         patch("src.bot.discord.bot.commands.music_service.is_valid_url", return_value=True), \
+         patch.object(CommandHandlers, "get_player") as mock_get_player:
+        
+        mock_get_playlist.return_value = [
+            {"title": "T1", "url": "test1", "uploader": "A1", "duration": 100}, 
+            {"title": "T2", "url": "test2", "uploader": "A2", "duration": 200}
+        ]
+        
+        mock_player = MagicMock()
+        mock_player.connect = AsyncMock(return_value=True)
+        mock_player.is_playing = False
+        mock_player.current_track = {"title": "T1", "url": "test1", "uploader": "A1", "duration": 100}
+        mock_player.add_to_queue = MagicMock()
+        mock_player.play_from_start = AsyncMock()
+        mock_player.set_text_channel = MagicMock()
+        mock_player.get_playback_position.return_value = (0, 0)
+        mock_player.get_queue_info.return_value = {"total": 2, "current_index": 0}
+        
+        mock_get_player.return_value = mock_player
+        
+        await CommandHandlers.handle_playlist(mock_bot_instance.bot, mock_discord_ctx, "http://youtube.com/playlist?list=XXX")
+        
+        mock_get_playlist.assert_called_once()
+        mock_player.connect.assert_called_once()
+        mock_player.add_to_queue.assert_called_once()
+        mock_player.play_from_start.assert_called_once()
