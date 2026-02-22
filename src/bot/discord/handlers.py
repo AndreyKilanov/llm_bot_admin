@@ -69,7 +69,7 @@ class MessageHandler:
             bool: True если сообщение следует обрабатывать дальше.
         """
         # Игнорируем сообщения от самого бота
-        if message.author == self.bot.user:
+        if message.author.id == getattr(self.bot.user, "id", None):
             return False
 
         # Игнорируем команды (начинаются с /)
@@ -115,7 +115,9 @@ class MessageHandler:
         if is_in_whitelist:
             if not is_dm and is_guild_active and not is_channel_active:
                 await self._auto_activate_channel(message)
-            return True
+                
+            respond_everyone = await SettingsService.should_respond_to_everyone()
+            return is_dm or is_mentioned or respond_everyone
 
         # Логика для новых (не в белом списке) чатов
         return await self._check_new_chat_permissions(message, is_dm, is_mentioned)
