@@ -1381,7 +1381,7 @@ tr.active td {
     background-color: var(--accent-secondary);
     border-radius: 50%;
     pointer-events: none;
-    z-index: 1000000;
+    z-index: 10000000;
     transform: translate(-50%, -50%);
     animation: softRipple 0.3s ease-out forwards;
     -webkit-filter: blur(2px);
@@ -1395,7 +1395,7 @@ tr.active td {
     height: 4px;
     background-color: var(--accent-secondary);
     pointer-events: none;
-    z-index: 1000000;
+    z-index: 10000000;
     box-shadow: 0 0 4px var(--accent-primary);
     animation: pixelExplode 0.5s ease-out forwards;
 }
