@@ -1,7 +1,7 @@
 import pytest
 from unittest.mock import AsyncMock, MagicMock
 from aiogram.types import Message, User, Chat
-from src.bot.discord.music_player import MusicPlayer
+from src.bot.discord.player.player import MusicPlayer
 import discord
 
 # --- Discord Mocks ---
