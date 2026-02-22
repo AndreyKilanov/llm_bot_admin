@@ -23,7 +23,37 @@ from .constants import (
     EMOJI_LOOP_NONE,
     EMOJI_LOOP_TRACK,
     EMOJI_LOOP_PLAYLIST,
-    EMOJI_ERROR
+    EMOJI_ERROR,
+    MSG_ERR_FIRST_TRACK,
+    MSG_ERR_LAST_TRACK,
+    MSG_ERR_PLAY_FAIL,
+    MSG_ERR_RESUME_FAIL,
+    MSG_ERR_PAUSE_FAIL,
+    MSG_STOPPED,
+    MSG_ERR_NO_ACTIVE_TRACK,
+    MSG_ERR_SEEK_FAIL,
+    MSG_ERR_QUEUE_EMPTY,
+    MSG_QUEUE_TITLE,
+    MSG_QUEUE_TOTAL,
+    MSG_TRACK_INFO,
+    MSG_QUEUE_EXTENDED,
+    MSG_LOOP_CHANGED,
+    MSG_LOOP_OFF,
+    MSG_LOOP_TRACK,
+    MSG_LOOP_PLAYLIST,
+    MSG_LOOP_UNKNOWN,
+    MSG_PLAYER_TITLE,
+    MSG_PLAYER_EMPTY,
+    MSG_NOW_PLAYING,
+    MSG_DURATION,
+    MSG_STATUS,
+    MSG_PROGRESS,
+    MSG_LOOP_MODE,
+    MSG_STATUS_PAUSED,
+    MSG_STATUS_PLAYING,
+    MSG_STATUS_FINISHED,
+    MSG_PLAYER_FOOTER,
+    MSG_UNKNOWN,
 )
 
 if TYPE_CHECKING:
@@ -73,7 +103,7 @@ class MusicPlayerView(BaseMusicView):
         if await self.player.play_previous():
             await self.update_player_message()
         else:
-            await interaction.followup.send(f"{EMOJI_ERROR} Это первый трек в очереди.", ephemeral=True)
+            await interaction.followup.send(MSG_ERR_FIRST_TRACK, ephemeral=True)
 
     @discord.ui.button(emoji=EMOJI_PAUSE, style=discord.ButtonStyle.primary, custom_id="pause_resume")
     async def pause_resume_button(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -85,16 +115,16 @@ class MusicPlayerView(BaseMusicView):
             if await self.player.play_from_start():
                 await self.update_player_message()
             else:
-                await interaction.followup.send(f"{EMOJI_ERROR} Не удалось запустить воспроизведение.", ephemeral=True)
+                await interaction.followup.send(MSG_ERR_PLAY_FAIL, ephemeral=True)
             return
 
         success = False
         if self.player.is_paused:
             success = self.player.resume()
-            error_msg = "Не удалось возобновить воспроизведение."
+            error_msg = MSG_ERR_RESUME_FAIL
         else:
             success = self.player.pause()
-            error_msg = "Не удалось приостановить воспроизведение."
+            error_msg = MSG_ERR_PAUSE_FAIL
 
         if success:
             await self.update_player_message()
@@ -108,7 +138,7 @@ class MusicPlayerView(BaseMusicView):
         if await self.player.play_next():
             await self.update_player_message()
         else:
-            await interaction.followup.send(f"{EMOJI_ERROR} Это последний трек в очереди.", ephemeral=True)
+            await interaction.followup.send(MSG_ERR_LAST_TRACK, ephemeral=True)
 
     @discord.ui.button(emoji=EMOJI_STOP, style=discord.ButtonStyle.danger, custom_id="stop")
     async def stop_button(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -122,7 +152,7 @@ class MusicPlayerView(BaseMusicView):
 
         if self.message:
             await self.message.edit(
-                content=f"{EMOJI_STOP} Воспроизведение остановлено.",
+                content=MSG_STOPPED,
                 embed=None,
                 view=None
             )
@@ -137,7 +167,7 @@ class MusicPlayerView(BaseMusicView):
         """
         await interaction.response.defer()
         if not self.player.current_track:
-            return await interaction.followup.send(f"{EMOJI_ERROR} Нет активного трека.", ephemeral=True)
+            return await interaction.followup.send(MSG_ERR_NO_ACTIVE_TRACK, ephemeral=True)
 
         self._set_seek_buttons_state(disabled=True)
         try:
@@ -145,7 +175,7 @@ class MusicPlayerView(BaseMusicView):
             if not await self.player.seek_relative(seconds):
                 direction = "вперед" if seconds > 0 else "назад"
                 await interaction.followup.send(
-                    f"{EMOJI_ERROR} Не удалось перемотать {direction} на {abs(seconds)}с.",
+                    MSG_ERR_SEEK_FAIL.format(direction=direction, seconds=abs(seconds)),
                     ephemeral=True
                 )
         except Exception as e:
@@ -179,11 +209,11 @@ class MusicPlayerView(BaseMusicView):
         queue_info = self.player.get_queue_info()
 
         if not queue_info['tracks']:
-            return await interaction.followup.send(f"{EMOJI_ERROR} Очередь пуста.", ephemeral=True)
+            return await interaction.followup.send(MSG_ERR_QUEUE_EMPTY, ephemeral=True)
 
         embed = discord.Embed(
-            title=f"{EMOJI_QUEUE} Очередь треков",
-            description=f"Всего треков: {queue_info['total']}",
+            title=MSG_QUEUE_TITLE,
+            description=MSG_QUEUE_TOTAL.format(total=queue_info['total']),
             color=SUCCESS_COLOR
         )
 
@@ -192,12 +222,12 @@ class MusicPlayerView(BaseMusicView):
             duration = music_service.format_duration(track["duration"])
             embed.add_field(
                 name=f"{prefix}{i + 1}. {track['title'][:100]}",
-                value=f"{track['uploader']} | {duration}",
+                value=MSG_TRACK_INFO.format(uploader=track['uploader'], duration=duration),
                 inline=False
             )
 
         if queue_info['total'] > 10:
-            embed.set_footer(text=f"... и еще {queue_info['total'] - 10} треков")
+            embed.set_footer(text=MSG_QUEUE_EXTENDED.format(count=queue_info['total'] - 10))
 
         await interaction.followup.send(embed=embed, ephemeral=True)
 
@@ -208,14 +238,14 @@ class MusicPlayerView(BaseMusicView):
         mode = self.player.cycle_loop_mode()
 
         mode_names = {
-            LoopMode.NONE: "выключено",
-            LoopMode.TRACK: "трек",
-            LoopMode.PLAYLIST: "плейлист"
+            LoopMode.NONE: MSG_LOOP_OFF,
+            LoopMode.TRACK: MSG_LOOP_TRACK,
+            LoopMode.PLAYLIST: MSG_LOOP_PLAYLIST
         }
 
         await self.update_player_message()
         await interaction.followup.send(
-            f"🔄 Режим зацикливания: **{mode_names.get(mode, 'неизвестно')}**.",
+            MSG_LOOP_CHANGED.format(mode=mode_names.get(mode, MSG_LOOP_UNKNOWN)),
             ephemeral=True
         )
 
@@ -283,8 +313,8 @@ class MusicPlayerView(BaseMusicView):
         track = self.player.current_track
         if not track:
             return discord.Embed(
-                title="🎵 Проигрыватель",
-                description="Нет активного трека в данный момент.",
+                title=MSG_PLAYER_TITLE,
+                description=MSG_PLAYER_EMPTY,
                 color=DEFAULT_EMBED_COLOR
             )
 
@@ -292,13 +322,13 @@ class MusicPlayerView(BaseMusicView):
         pos, duration_sec = self.player.get_playback_position()
 
         embed = discord.Embed(
-            title="🎵 Сейчас играет",
+            title=MSG_NOW_PLAYING,
             description=f"**{track['uploader']}**\n[{track['title']}]({track['url']})",
             color=DEFAULT_EMBED_COLOR,
             url=track['url']
         )
 
-        embed.add_field(name="Длительность", value=music_service.format_duration(track["duration"]), inline=True)
+        embed.add_field(name=MSG_DURATION, value=music_service.format_duration(track["duration"]), inline=True)
         if track.get('thumbnail'):
             embed.set_thumbnail(url=track['thumbnail'])
 
@@ -306,18 +336,18 @@ class MusicPlayerView(BaseMusicView):
         self._add_progress_field(embed, pos, duration_sec)
         self._add_loop_field(embed)
 
-        embed.set_footer(text=f"♫ Трек {queue_info['current_index'] + 1} из {queue_info['total']}")
+        embed.set_footer(text=MSG_PLAYER_FOOTER.format(current=queue_info['current_index'] + 1, total=queue_info['total']))
         return embed
 
     def _add_status_field(self, embed: discord.Embed):
         """Добавляет поле статуса в Embed."""
         if self.player.is_paused:
-            status = f"{EMOJI_PAUSE} На паузе"
+            status = MSG_STATUS_PAUSED
         elif self.player.is_playing:
-            status = f"{EMOJI_PLAY} Воспроизводится"
+            status = MSG_STATUS_PLAYING
         else:
-            status = "🏁 Завершено"
-        embed.add_field(name="Статус", value=status, inline=True)
+            status = MSG_STATUS_FINISHED
+        embed.add_field(name=MSG_STATUS, value=status, inline=True)
 
     def _add_progress_field(self, embed: discord.Embed, pos: int, total: int):
         """Добавляет поле прогресс-бара в Embed."""
@@ -337,7 +367,7 @@ class MusicPlayerView(BaseMusicView):
 
         pos_str = music_service.format_duration(pos)
         total_str = music_service.format_duration(total)
-        embed.add_field(name="Прогресс", value=f"`{pos_str}` {bar} `{total_str}`", inline=False)
+        embed.add_field(name=MSG_PROGRESS, value=f"`{pos_str}` {bar} `{total_str}`", inline=False)
 
     def _add_loop_field(self, embed: discord.Embed):
         """Добавляет информацию о режиме зацикливания в Embed."""
@@ -346,9 +376,9 @@ class MusicPlayerView(BaseMusicView):
 
         if self.player.loop_mode == LoopMode.TRACK:
             emoji = self._get_custom_emoji("repeat1", EMOJI_LOOP_TRACK)
-            label = "Зацикливание трека"
+            label = MSG_LOOP_TRACK.capitalize()
         else:
             emoji = self._get_custom_emoji("repeat-1", None) or self._get_custom_emoji("repeat_1", EMOJI_LOOP_PLAYLIST)
-            label = "Зацикливание плейлиста"
+            label = MSG_LOOP_PLAYLIST.capitalize()
 
-        embed.add_field(name=f"{emoji} Режим", value=label, inline=True)
+        embed.add_field(name=f"{emoji} {MSG_LOOP_MODE}", value=label, inline=True)
