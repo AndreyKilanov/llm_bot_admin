@@ -545,6 +545,33 @@ label,
     }
 }
 
+/* Icon & Transparent Buttons */
+.btn-icon,
+.btn-transparent {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: none;
+    cursor: var(--cursor-default) !important;
+    color: var(--text-secondary);
+    padding: 0.5rem;
+    border-radius: 50%;
+    min-width: auto;
+    width: 40px;
+    height: 40px;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+}
+
+.btn-icon:hover,
+.btn-transparent:hover {
+    color: var(--text-primary);
+    background: rgba(255, 255, 255, 0.1);
+    box-shadow: 0 0 10px rgba(255, 255, 255, 0.1);
+}
+
 .delete-prompt:hover {
     background: rgba(239, 68, 68, 0.1) !important;
     color: var(--danger) !important;
