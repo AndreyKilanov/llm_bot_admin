@@ -8,15 +8,16 @@ from discord.ext import commands
 from typing import Optional
 
 from src.bot.discord.player import MusicPlayer, PlayerFactory
-from src.bot.discord.views import MusicPlayerView, TrackSelectionView
+from src.bot.discord.views import MusicPlayerView, TrackSelectionView, QueuePaginationView
 from src.services import music_service, SettingsService
 from .constants import (
     ICON_SEARCH, ICON_MUSIC, ICON_SKIP, ICON_PREV, 
     ICON_PAUSE, ICON_RESUME, ICON_STOP, ICON_QUEUE,
-    ICON_ROBOT, ICON_SPARKLE, ICON_INFO, ICON_ERR,
+    ICON_ROBOT, ICON_SPARKLE, ICON_INFO, ICON_ERR, ICON_OK,
     MSG_BOT_DISABLED, MSG_MUSIC_DISABLED, MSG_VOICE_REQUIRED,
     MSG_SEARCH_FAIL, MSG_CONN_FAIL, MSG_LOAD_FAIL, MSG_INVALID_URL,
-    MSG_NOTHING_PLAYING, MSG_PLAYER_MISSING, MSG_QUEUE_EMPTY
+    MSG_NOTHING_PLAYING, MSG_PLAYER_MISSING, MSG_QUEUE_EMPTY,
+    MAX_SEARCH_RESULTS
 )
 
 class CommandHandlers:
@@ -134,7 +135,7 @@ class CommandHandlers:
             return
 
         await ctx.send(f"{ICON_SEARCH} Поиск: **{query}**...")
-        tracks = await music_service.search_tracks(query, max_results=5)
+        tracks = await music_service.search_tracks(query, max_results=MAX_SEARCH_RESULTS)
 
         if not tracks:
             await ctx.send(MSG_SEARCH_FAIL)
@@ -190,6 +191,35 @@ class CommandHandlers:
             return
 
         await cls.start_playback_sequence(bot, ctx, [info], v_channel)
+
+    @classmethod
+    async def handle_playlist(cls, bot: commands.Bot, ctx: commands.Context, url: str) -> None:
+        """Обрабатывает команду добавления плейлиста по ссылке.
+
+        Получает все треки из плейлиста YouTube и добавляет их в очередь.
+
+        Args:
+            bot: Экземпляр бота Discord.
+            ctx: Контекст команды Discord.
+            url: Ссылка на плейлист (YouTube).
+        """
+        v_channel = await cls.verify_ready(ctx)
+        if not v_channel:
+            return
+            
+        if not music_service.is_valid_url(url):
+            await ctx.send(MSG_INVALID_URL)
+            return
+
+        await ctx.send(f"{ICON_SEARCH} Загрузка плейлиста: <{url}>...")
+        tracks = await music_service.get_playlist_info(url)
+        
+        if not tracks:
+            await ctx.send(f"{ICON_ERR} Не удалось загрузить плейлист.")
+            return
+
+        await ctx.send(f"{ICON_OK} Найдено {len(tracks)} треков. Добавляю в очередь...")
+        await cls.start_playback_sequence(bot, ctx, tracks, v_channel)
 
     @classmethod
     async def handle_skip(cls, bot: commands.Bot, ctx: commands.Context) -> None:
@@ -285,7 +315,7 @@ class CommandHandlers:
     async def handle_queue(cls, bot: commands.Bot, ctx: commands.Context) -> None:
         """Отображает текущую очередь воспроизведения.
 
-        Показывает первые 10 треков в очереди с указанием текущего.
+        Показывает очередь с поддержкой пагинации.
 
         Args:
             bot: Экземпляр бота Discord.
@@ -296,18 +326,11 @@ class CommandHandlers:
         if not player or not player.queue:
             await ctx.send(MSG_QUEUE_EMPTY)
             return
-        embed = discord.Embed(
-            title=f"{ICON_QUEUE} Список треков",
-            description=f"Всего в очереди: **{len(player.queue)}**",
-            color=discord.Color.green()
-        )
-        for i, track in enumerate(player.queue[:10]):
-            prefix = f"{ICON_RESUME} " if i == player.current_index else ""
-            dur = music_service.format_duration(track["duration"])
-            embed.add_field(name=f"{prefix}{i + 1}. {track['title'][:100]}", value=f"{track['uploader']} | {dur}", inline=False)
-        if len(player.queue) > 10:
-            embed.set_footer(text=f"... и еще {len(player.queue) - 10} треков")
-        await ctx.send(embed=embed)
+            
+        view = QueuePaginationView(player, ctx)
+        embed = view.create_embed()
+        message = await ctx.send(embed=embed, view=view)
+        view.message = message
 
     @classmethod
     async def handle_nowplaying(cls, bot: commands.Bot, ctx: commands.Context) -> None:
@@ -346,7 +369,12 @@ class CommandHandlers:
             description=(
                 f"Я — мультифункциональный бот с AI и музыкой! {ICON_SPARKLE}\n\n"
                 "**🧠 Чат с ИИ**\n• Отвечаю в ЛС или по упоминанию `@Бот`.\n\n"
-                "**🎵 Плеер**\n• `/playmusic` — поиск\n• `/link` — по ссылке\n• `/stop` — выход\n\n"
+                "**🎵 Плеер**\n"
+                "• `/playmusic` — поиск (до 100 результатов, пагинация)\n"
+                "• `/link` — играть по ссылке YouTube\n"
+                "• `/playlist` — загрузить плейлист целиком\n"
+                "• `/queue` — список треков (с пагинацией)\n"
+                "• `/stop` — остановка и выход\n\n"
                 "**⚙️ Управление**\n• `/pause` / `/resume`\n• `/skip` / `/previous`"
             ),
             color=discord.Color.from_rgb(88, 101, 242)
