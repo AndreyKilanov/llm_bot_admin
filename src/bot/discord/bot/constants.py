@@ -3,6 +3,7 @@ from typing import Final
 # Инфраструктурные константы
 OPUS_PATH: Final[str] = "/usr/lib/x86_64-linux-gnu/libopus.so.0"
 DEFAULT_PREFIX: Final[str] = "/"
+MAX_SEARCH_RESULTS: Final[int] = 100
 
 # Визуальные элементы (эмодзи)
 ICON_ERR: Final[str] = "❌"
