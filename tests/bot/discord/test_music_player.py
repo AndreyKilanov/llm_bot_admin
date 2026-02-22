@@ -153,3 +153,27 @@ async def test_seek_relative(discord_player, mock_voice_channel):
             result = await discord_player.seek_relative(10)
             assert result is True
             mock_get_source.assert_called_with("u", start_time=60)
+
+
+@pytest.mark.asyncio
+async def test_auto_play_next_retains_current_track(discord_player, mock_voice_channel):
+    """Тест того, что current_track не зануляется при завершении очереди."""
+    from tests.fixtures import FakeVoiceClient
+    vc = FakeVoiceClient(123)
+    discord_player.bot.mock_guild.voice_client = vc
+    await discord_player.connect(mock_voice_channel)
+    
+    track = {"title": "Last Track", "url": "url", "duration": 100, "uploader": "U"}
+    discord_player.add_to_queue([track])
+    discord_player.current_index = 0
+    discord_player.current_track = track
+    discord_player.is_playing = True
+    
+    # Имитируем завершение трека и отсутствие следующего
+    with patch.object(discord_player, "play_next", new_callable=AsyncMock) as mock_play_next:
+        mock_play_next.return_value = False
+        
+        await discord_player._auto_play_next()
+        
+        assert discord_player.is_playing is False
+        assert discord_player.current_track == track # Должен остаться!
