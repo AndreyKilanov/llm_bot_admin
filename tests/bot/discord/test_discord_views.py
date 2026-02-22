@@ -188,3 +188,43 @@ async def test_music_player_finished_state_ui(mock_ctx, mock_player):
     progress_field = next(f for f in embed.fields if f.name == "Прогресс")
     assert "`1:40`" in progress_field.value
     assert "●" in progress_field.value
+
+
+@pytest.mark.asyncio
+async def test_queue_pagination_view(mock_ctx, mock_player, mock_interaction):
+    """Тест работы пагинации очереди."""
+    from src.bot.discord.views.queue_pagination import QueuePaginationView
+    
+    mock_player.queue = [{"title": f"Song {i}", "duration": 100, "uploader": "Artist"} for i in range(12)]
+    view = QueuePaginationView(mock_player, mock_ctx, items_per_page=5)
+    
+    assert view.total_pages == 3
+    assert view.current_page == 0
+    assert view.prev_button.disabled is True
+    assert view.next_button.disabled is False
+    
+    await view.next_button.callback(mock_interaction)
+    assert view.current_page == 1
+    assert view.prev_button.disabled is False
+    mock_interaction.edit_original_response.assert_called()
+    
+    await view.prev_button.callback(mock_interaction)
+    assert view.current_page == 0
+    assert view.prev_button.disabled is True
+
+
+@pytest.mark.asyncio
+async def test_track_selection_pagination(mock_ctx, mock_player, mock_interaction):
+    """Тест пагинации поиска."""
+    tracks = [{"title": f"Song {i}", "url": f"http://song{i}"} for i in range(12)]
+    view = TrackSelectionView(tracks, mock_player, mock_ctx)
+    view.items_per_page = 5
+    
+    assert view.total_pages == 3
+    assert view.current_page == 0
+    
+    # Клик "Вперед"
+    next_btn = next(c for c in view.children if c.custom_id == "search_next")
+    await next_btn.callback(mock_interaction)
+    assert view.current_page == 1
+    mock_interaction.edit_original_response.assert_called()
