@@ -52,6 +52,11 @@ class DiscordBot:
             await ctx.defer()
             await CommandHandlers.handle_link(self.bot, ctx, url)
 
+        @self.bot.hybrid_command(name="playlist", description="Загрузить плейлист по ссылке YouTube")
+        async def play_playlist_cmd(ctx: commands.Context, *, url: str):
+            await ctx.defer()
+            await CommandHandlers.handle_playlist(self.bot, ctx, url)
+
         @self.bot.hybrid_command(name="skip", description="К следующему треку")
         async def skip_cmd(ctx: commands.Context):
             await CommandHandlers.handle_skip(self.bot, ctx)
