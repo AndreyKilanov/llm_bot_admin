@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, TypeAlias
 import discord
 from discord.ext import commands
 
@@ -7,8 +7,8 @@ from .constants import EMOJI_ERROR
 if TYPE_CHECKING:
     from src.bot.discord.player import MusicPlayer
 
-type TrackInfo = dict[str, Any]
-type DiscordEmoji = discord.Emoji | discord.PartialEmoji | str
+TrackInfo: TypeAlias = dict[str, Any]
+DiscordEmoji: TypeAlias = discord.Emoji | discord.PartialEmoji | str
 
 
 class BaseMusicView(discord.ui.View):
