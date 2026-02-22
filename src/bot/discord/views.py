@@ -467,12 +467,26 @@ class MusicPlayerView(discord.ui.View):
             # Картинка справа (thumbnail)
             embed.set_thumbnail(url=track['thumbnail'])
 
-        status_emoji = "⏸️" if self.player.is_paused else "▶️"
-        status_text = "На паузе" if self.player.is_paused else "Воспроизводится"
+        if self.player.is_paused:
+            status_emoji = "⏸️"
+            status_text = "На паузе"
+        elif self.player.is_playing:
+            status_emoji = "▶️"
+            status_text = "Воспроизводится"
+        else:
+            status_emoji = "🏁"
+            status_text = "Завершено"
+        
         embed.add_field(name="Статус", value=f"{status_emoji} {status_text}", inline=False)
 
         if total_duration > 0:
-            progress = position / total_duration
+            if not self.player.is_playing and not self.player.is_paused:
+                # Если всё закончилось, показываем 100%
+                progress = 1.0
+                position = total_duration
+            else:
+                progress = position / total_duration
+                
             bar_length = 15
             filled = max(0, int(bar_length * progress))
 
