@@ -378,7 +378,7 @@ class MusicPlayer:
         if not await self.play_next():
             logger.info("Очередь завершена")
             # Не очищаем очередь, просто останавливаемся
-            self.current_track = None
+            # Мы оставляем current_track, чтобы UI мог показать финальное состояние
             self.is_playing = False
             await self._update_player_ui()
             await self._schedule_disconnect()
@@ -575,7 +575,7 @@ class MusicPlayer:
 
     async def _update_player_ui(self):
         """Обновление или создание UI проигрывателя."""
-        if not self.text_channel or not self.current_track:
+        if not self.text_channel:
             return
 
         if self.player_view and self.player_message:
