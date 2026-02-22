@@ -75,9 +75,10 @@ async def test_get_or_create_player(mock_bot_discord):
     assert player1 is player2
 
 @pytest.mark.asyncio
+@patch("src.bot.discord.bot.SettingsService.is_discord_bot_enabled", return_value=True)
 @patch("src.bot.discord.bot.SettingsService.is_discord_music_enabled", return_value=True)
 @patch("src.bot.discord.bot.music_service.search_tracks")
-async def test_handle_playmusic_single_track(mock_search, mock_settings_srv, mock_bot_discord, mock_discord_ctx):
+async def test_handle_playmusic_single_track(mock_search, mock_music_enabled, mock_bot_enabled, mock_bot_discord, mock_discord_ctx):
     # Setup search result
     mock_search.return_value = [{"title": "Test Track", "url": "test", "duration": 100, "uploader": "Test"}]
     
@@ -103,23 +104,26 @@ async def test_handle_playmusic_single_track(mock_search, mock_settings_srv, moc
             mock_send_ui.assert_called_once()
 
 @pytest.mark.asyncio
+@patch("src.bot.discord.bot.SettingsService.is_discord_bot_enabled", return_value=True)
 @patch("src.bot.discord.bot.SettingsService.is_discord_music_enabled", return_value=True)
-async def test_handle_playmusic_no_voice(mock_settings_srv, mock_bot_discord, mock_discord_ctx):
+async def test_handle_playmusic_no_voice(mock_music_enabled, mock_bot_enabled, mock_bot_discord, mock_discord_ctx):
     mock_discord_ctx.author.voice = None
     await mock_bot_discord._handle_playmusic(mock_discord_ctx, "query")
     mock_discord_ctx.send.assert_called_with("❌ Вы должны находиться в голосовом канале!")
 
 @pytest.mark.asyncio
+@patch("src.bot.discord.bot.SettingsService.is_discord_bot_enabled", return_value=True)
 @patch("src.bot.discord.bot.SettingsService.is_discord_music_enabled", return_value=False)
-async def test_handle_command_disabled(mock_settings_srv, mock_bot_discord, mock_discord_ctx):
+async def test_handle_command_disabled(mock_music_enabled, mock_bot_enabled, mock_bot_discord, mock_discord_ctx):
     await mock_bot_discord._handle_playmusic(mock_discord_ctx, "query")
     mock_discord_ctx.send.assert_called_with("❌ Музыкальный плеер отключен в настройках администратора.")
     
 @pytest.mark.asyncio
+@patch("src.bot.discord.bot.SettingsService.is_discord_bot_enabled", return_value=True)
 @patch("src.bot.discord.bot.SettingsService.is_discord_music_enabled", return_value=True)
 @patch("src.bot.discord.bot.music_service.is_valid_url", return_value=True)
 @patch("src.bot.discord.bot.music_service.get_track_info")
-async def test_handle_link(mock_get_info, mock_is_valid, mock_settings_srv, mock_bot_discord, mock_discord_ctx):
+async def test_handle_link(mock_get_info, mock_is_valid, mock_music_enabled, mock_bot_enabled, mock_bot_discord, mock_discord_ctx):
     mock_get_info.return_value = {"title": "Test Track", "url": "test", "duration": 100, "uploader": "Test"}
     
     with patch.object(mock_bot_discord, '_get_or_create_player') as mock_get_player:
@@ -136,8 +140,9 @@ async def test_handle_link(mock_get_info, mock_is_valid, mock_settings_srv, mock
             mock_player.add_to_queue.assert_called_once()
 
 @pytest.mark.asyncio
+@patch("src.bot.discord.bot.SettingsService.is_discord_bot_enabled", return_value=True)
 @patch("src.bot.discord.bot.SettingsService.is_discord_music_enabled", return_value=True)
-async def test_handle_skip(mock_settings_srv, mock_bot_discord, mock_discord_ctx):
+async def test_handle_skip(mock_music_enabled, mock_bot_enabled, mock_bot_discord, mock_discord_ctx):
     # No player
     await mock_bot_discord._handle_skip(mock_discord_ctx)
     mock_discord_ctx.send.assert_called_with("❌ Ничего не воспроизводится.")
@@ -153,8 +158,9 @@ async def test_handle_skip(mock_settings_srv, mock_bot_discord, mock_discord_ctx
     mock_discord_ctx.send.assert_called_with("⏭️ Переключено на следующий трек.")
     
 @pytest.mark.asyncio
+@patch("src.bot.discord.bot.SettingsService.is_discord_bot_enabled", return_value=True)
 @patch("src.bot.discord.bot.SettingsService.is_discord_music_enabled", return_value=True)
-async def test_handle_stop(mock_settings_srv, mock_bot_discord, mock_discord_ctx):
+async def test_handle_stop(mock_music_enabled, mock_bot_enabled, mock_bot_discord, mock_discord_ctx):
     mock_player = AsyncMock()
     mock_bot_discord.music_players[123] = mock_player
     
@@ -166,7 +172,8 @@ async def test_handle_stop(mock_settings_srv, mock_bot_discord, mock_discord_ctx
     mock_discord_ctx.send.assert_called_with("⏹️ Воспроизведение остановлено, бот отключен от канала.")
 
 @pytest.mark.asyncio
+@patch("src.bot.discord.bot.SettingsService.is_discord_bot_enabled", return_value=True)
 @patch("src.bot.discord.bot.SettingsService.is_discord_music_enabled", return_value=True)
-async def test_handle_help(mock_settings_srv, mock_bot_discord, mock_discord_ctx):
+async def test_handle_help(mock_music_enabled, mock_bot_enabled, mock_bot_discord, mock_discord_ctx):
     await mock_bot_discord._handle_help(mock_discord_ctx)
     mock_discord_ctx.send.assert_called_once()
