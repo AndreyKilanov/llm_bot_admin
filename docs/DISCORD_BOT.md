@@ -39,10 +39,14 @@ src/bot/discord/
 ├── player/              # Ядро музыкального плеера
 │   ├── player.py        # Основная логика воспроизведения
 │   ├── factory.py       # Фабрика для управления плеерами серверов
-│   └── queue_manager.py # Управление очередью треков
+│   ├── queue_manager.py # Управление очередью треков
+│   ├── voice_handler.py # Управление голосовым каналом
+│   └── enums.py         # Перечисления состояний плеера
 ├── views/               # UI-компоненты (Discord Views)
+│   ├── base.py          # Базовые классы для UI
 │   ├── music_player.py  # Интерактивный пульт управления
-│   ├── track_selection.py# Выбор треков из результатов поиска
+│   ├── queue_pagination.py # Пагинация очереди воспроизведения
+│   ├── track_selection.py  # Выбор треков из результатов поиска
 │   └── constants.py     # Цвета и текстовые блоки UI
 ├── handlers.py          # Логика чат-интерфейса (LLM)
 └── __init__.py          # Точка входа в пакет
@@ -156,12 +160,13 @@ src/bot/discord/
 
 | Ключ | По умолчанию | Описание |
 | :--- | :--- | :--- |
-| `discord_bot_enabled` | `true` | Глобальный переключатель Discord бота. |
+| `discord_bot_enabled` | `false` | Глобальный переключатель Discord бота. |
 | `discord_allow_new_chats` | `false` | Автоматически добавлять новые серверы в whitelist. |
 | `discord_allow_dms` | `true` | Разрешить общение в личных сообщениях. |
 | `discord_memory_limit` | `10` | Количество последних сообщений, доступных LLM. |
 | `discord_music_enabled` | `true` | Включить/выключить музыкальный плеер. |
 | `discord_seek_time` | `10` | Время перемотки трека в секундах. |
+| `discord_respond_everyone` | `false` | Отвечать на все сообщения (true) или только на упоминания (false). |
 
 ---
 
