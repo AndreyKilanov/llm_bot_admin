@@ -184,32 +184,23 @@ docker-compose build --no-cache
 
 ## Запуск без Docker
 
-### 1. Установка зависимостей
+### 1. Установка зависимостей и окружения
 
 ```bash
-# Создание виртуального окружения
-python -m venv venv
-
-# Активация виртуального окружения
-# Windows:
-venv\Scripts\activate
-# Linux/Mac:
-source venv/bin/activate
-
-# Установка зависимостей
-pip install -r requirements.txt
+# Использование uv для установки зависимостей (окружение создастся автоматически)
+uv sync
 ```
 
 ### 2. Инициализация базы данных
 
 ```bash
-python -m src.database.init_db
+uv run python -m src.database.init_db
 ```
 
 ### 3. Запуск приложения
 
 ```bash
-python -m src.main
+uv run python -m src.main
 ```
 
 ## Конфигурация портов
@@ -464,11 +455,10 @@ pytest
 
 ```bash
 # Telegram
-pytest tests/test_whitelist_middleware.py
+pytest tests/bot/telegram/
 
 # Discord
-pytest tests/test_music_player.py
-pytest tests/test_music_service.py
+pytest tests/bot/discord/
 ```
 
 ## Безопасность
@@ -488,10 +478,10 @@ src/
 │   │   ├── handlers.py    # Обработчики команд
 │   │   └── middleware.py  # Middleware
 │   └── discord/           # Discord бот
-│       ├── bot.py         # Основной класс
-│       ├── handlers.py    # Обработчик сообщений
-│       ├── music_player.py # Музыкальный плеер
-│       └── views.py       # UI компоненты
+│       ├── bot/           # Основные компоненты бота (клиент, команды)
+│       ├── player/        # Аудио-плеер, работа с голосовым каналом и очередью
+│       ├── views/         # UI-компоненты (кнопки, пагинация, списки)
+│       └── handlers.py    # Обработчик сообщений (LLM-чат)
 ├── services/              # Общие сервисы
 │   ├── llm_service.py    # Интеграция с LLM
 │   ├── history_service.py # История сообщений
@@ -503,6 +493,13 @@ src/
 └── web/                   # Веб-интерфейс
     ├── app.py            # FastAPI приложение
     └── admin.py          # Админ-панель
+tests/                     # Тесты
+├── bot/                   # Тесты ботов (discord, telegram)
+├── core/                  # Тесты ядра
+├── services/              # Тесты сервисов
+├── web/                   # Тесты API
+├── conftest.py            # Основные настройки pytest
+└── fixtures.py            # Переиспользуемые фикстуры
 ```
 
 ## Полезные ссылки
