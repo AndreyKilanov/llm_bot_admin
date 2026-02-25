@@ -54,6 +54,7 @@ from .constants import (
     MSG_STATUS_FINISHED,
     MSG_PLAYER_FOOTER,
     MSG_UNKNOWN,
+    INVISIBLE_SPACER,
 )
 
 if TYPE_CHECKING:
@@ -321,7 +322,9 @@ class MusicPlayerView(BaseMusicView):
         self._add_progress_field(embed, pos, duration_sec)
         self._add_loop_field(embed)
 
-        embed.set_footer(text=MSG_PLAYER_FOOTER.format(current=queue_info['current_index'] + 1, total=queue_info['total']))
+        embed.set_footer(
+            text=f"{MSG_PLAYER_FOOTER.format(current=queue_info['current_index'] + 1, total=queue_info['total'])}{INVISIBLE_SPACER}"
+        )
         return embed
 
     def _add_status_field(self, embed: discord.Embed):
