@@ -7,7 +7,6 @@ from src.services import music_service
 
 from .base import BaseMusicView
 from .constants import (
-    DEFAULT_ITEMS_PER_PAGE,
     DEFAULT_VIEW_TIMEOUT,
     EMOJI_PLAY,
     LABEL_NEXT_PAGE,
@@ -18,6 +17,7 @@ from .constants import (
     MSG_QUEUE_FOOTER,
     MSG_TRACK_INFO,
     MSG_UNKNOWN,
+    INVISIBLE_SPACER,
 )
 
 if TYPE_CHECKING:
@@ -104,10 +104,13 @@ class QueuePaginationView(BaseMusicView):
         page_tracks = self.player.queue[start_idx:end_idx]
 
         options = []
+        total_tracks = len(self.player.queue)
+        idx_width = len(str(total_tracks))
+
         for i, track in enumerate(page_tracks, start=start_idx):
-            title = str(track.get('title') or 'Unknown')[:90]
-            uploader = str(track.get('uploader') or 'Unknown')[:50]
-            label = f"{i + 1}. {title}"
+            title = str(track.get('title') or 'Unknown')[:80]
+            uploader = str(track.get('uploader') or 'Unknown')[:40]
+            label = f"{i + 1:>{idx_width}}. {title}"
             description = uploader
 
             if i == self.player.current_index:
@@ -120,8 +123,9 @@ class QueuePaginationView(BaseMusicView):
             ))
 
         if options:
+            placeholder = f"Выберите трек для воспроизведения...{INVISIBLE_SPACER}"
             select = discord.ui.Select(
-                placeholder="Выберите трек для воспроизведения...",
+                placeholder=placeholder[:100],
                 options=options,
                 custom_id="queue_select"
             )
@@ -159,23 +163,23 @@ class QueuePaginationView(BaseMusicView):
         end_idx = start_idx + self.items_per_page
         page_tracks = self.player.queue[start_idx:end_idx]
 
+        total_tracks = len(self.player.queue)
+        idx_width = len(str(total_tracks))
+
         for i, track in enumerate(page_tracks, start=start_idx):
             is_current = i == self.player.current_index
             prefix = f"{EMOJI_PLAY} " if is_current else ""
             duration = music_service.format_duration(track.get("duration") or 0)
-            title = track.get("title", MSG_UNKNOWN)[:100]
+            title = track.get("title", MSG_UNKNOWN)[:80]
             uploader = track.get("uploader", MSG_UNKNOWN)
             embed.add_field(
-                name=f"{prefix}{i + 1}. {title}",
+                name=f"{prefix}{i + 1:>{idx_width}}. {title}",
                 value=MSG_TRACK_INFO.format(uploader=uploader, duration=duration),
                 inline=False,
             )
 
         embed.set_footer(
-            text=MSG_QUEUE_FOOTER.format(
-                current=self.current_page + 1,
-                pages=self.total_pages
-            )
+            text=f"{MSG_QUEUE_FOOTER.format(current=self.current_page + 1, pages=self.total_pages)}{INVISIBLE_SPACER}"
         )
         return embed
 
