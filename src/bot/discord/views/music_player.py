@@ -204,32 +204,17 @@ class MusicPlayerView(BaseMusicView):
 
     @discord.ui.button(emoji=EMOJI_QUEUE, style=discord.ButtonStyle.secondary, custom_id="queue", row=1)
     async def queue_button(self, interaction: discord.Interaction, button: discord.ui.Button):
-        """Кнопка отображения текущей очереди треков."""
-        await interaction.response.defer()
-        queue_info = self.player.get_queue_info()
+        """Кнопка отображения текущей очереди треков с поддержкой пагинации."""
+        from .queue_pagination import QueuePaginationView
+        
+        if not self.player.queue:
+            return await interaction.response.send_message(MSG_ERR_QUEUE_EMPTY, ephemeral=True)
 
-        if not queue_info['tracks']:
-            return await interaction.followup.send(MSG_ERR_QUEUE_EMPTY, ephemeral=True)
-
-        embed = discord.Embed(
-            title=MSG_QUEUE_TITLE,
-            description=MSG_QUEUE_TOTAL.format(total=queue_info['total']),
-            color=SUCCESS_COLOR
-        )
-
-        for i, track in enumerate(queue_info['tracks'][:10]):
-            prefix = f"{EMOJI_PLAY} " if i == queue_info['current_index'] else ""
-            duration = music_service.format_duration(track["duration"])
-            embed.add_field(
-                name=f"{prefix}{i + 1}. {track['title'][:100]}",
-                value=MSG_TRACK_INFO.format(uploader=track['uploader'], duration=duration),
-                inline=False
-            )
-
-        if queue_info['total'] > 10:
-            embed.set_footer(text=MSG_QUEUE_EXTENDED.format(count=queue_info['total'] - 10))
-
-        await interaction.followup.send(embed=embed, ephemeral=True)
+        view = QueuePaginationView(self.player, self.ctx, items_per_page=10)
+        embed = view.create_embed()
+        
+        await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
+        view.message = await interaction.original_response()
 
     @discord.ui.button(emoji=EMOJI_LOOP_NONE, style=discord.ButtonStyle.secondary, custom_id="loop_mode", row=1)
     async def loop_mode_button(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -328,7 +313,7 @@ class MusicPlayerView(BaseMusicView):
             url=track['url']
         )
 
-        embed.add_field(name=MSG_DURATION, value=music_service.format_duration(track["duration"]), inline=True)
+        embed.add_field(name=MSG_DURATION, value=music_service.format_duration(track.get("duration") or 0), inline=True)
         if track.get('thumbnail'):
             embed.set_thumbnail(url=track['thumbnail'])
 
