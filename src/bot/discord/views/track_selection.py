@@ -148,7 +148,7 @@ class TrackSelectionView(BaseMusicView):
         page_tracks = self.tracks[start_idx:end_idx]
 
         for i, track in enumerate(page_tracks, 1):
-            duration = music_service.format_duration(track.get("duration", 0))
+            duration = music_service.format_duration(track.get("duration") or 0)
             title = track.get("title", MSG_UNKNOWN)[:100]
             uploader = track.get("uploader", MSG_UNKNOWN)
 
