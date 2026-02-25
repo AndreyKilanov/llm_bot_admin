@@ -18,7 +18,6 @@ if [ ! -d "migrations/models" ] || [ -z "$(ls -A migrations/models 2>/dev/null)"
     uv run aerich init-db
 else
     echo "Migrations exist. Applying existing migrations..."
-    # Применяем все существующие миграции к базе данных
     uv run aerich upgrade || echo "Database might be already up to date or empty."
 
     echo "Checking for new model changes..."
