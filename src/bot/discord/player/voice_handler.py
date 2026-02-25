@@ -60,11 +60,9 @@ class VoiceHandler:
 
         vc: VoiceClient | None = guild.voice_client
 
-        # 1. Если уже подключены к нужному каналу — успех
         if vc and vc.is_connected() and vc.channel and vc.channel.id == channel.id:
             return True
 
-        # 2. Обработка некорректных состояний (Ghost sessions)
         needs_reset = False
         if vc and not vc.is_connected():
             needs_reset = True
@@ -78,13 +76,11 @@ class VoiceHandler:
                 if vc:
                     await vc.disconnect(force=True)
                 else:
-                    # Принудительный сброс через Gateway, если нет объекта VoiceClient
                     await guild.change_voice_state(channel=None)
-                await asyncio.sleep(1.0)  # Даем время Discord на обновление состояния
+                await asyncio.sleep(1.0)
             except Exception as e:
                 logger.debug("Ошибка при сбросе состояния голоса (игнорируется): %s", e)
 
-        # 3. Перемещение между каналами
         if vc and vc.is_connected() and vc.channel and vc.channel.id != channel.id:
             try:
                 logger.info("Перемещение на сервере %d: %s -> %s", self.guild_id, vc.channel.name, channel.name)
@@ -98,14 +94,12 @@ class VoiceHandler:
                 except:
                     pass
 
-        # 4. Основная попытка подключения
         try:
             logger.info("Подключение к голосовому каналу '%s' сервера %d...", channel.name, self.guild_id)
             await channel.connect(timeout=CONNECT_TIMEOUT, reconnect=True)
             return True
         except Exception as e:
             logger.error("Ошибка подключения на сервере %d: %s", self.guild_id, e)
-            # В случае неудачи очищаем VoiceClient, если он был создан в некорректном состоянии
             current_vc = guild.voice_client
             if current_vc:
                 try:
