@@ -266,8 +266,15 @@ class MusicPlayer:
 
     # ==================== Внутренняя логика ====================
 
-    async def _play_track(self, track: TrackData) -> bool:
+    async def _play_track(self, track: TrackData, retry_count: int = 0) -> bool:
         if not self.is_connected:
+            return False
+
+        # Защита от бесконечного цикла, если вся очередь битая (например, 10 подряд)
+        if retry_count > 10:
+            logger.error("Слишком много ошибок воспроизведения подряд. Остановка.")
+            await self._notify_error("❌ Слишком много ошибок в очереди. Воспроизведение остановлено.")
+            await self.stop_playback()
             return False
 
         vc: VoiceClient = self.voice_client
@@ -282,8 +289,8 @@ class MusicPlayer:
             audio_source = await music_service.get_audio_source(url)
 
             if not audio_source:
-                await self._notify_error(f"⚠️ Трек **{title}** недоступен.")
-                return await self.play_next()
+                await self._notify_error(f"⚠️ Трек **{title}** недоступен (приватный или удален). Пропускаю...")
+                return await self._skip_to_next_on_error(retry_count)
 
             self.queue_manager.current_track = track
             self.is_playing = True
@@ -305,12 +312,19 @@ class MusicPlayer:
 
         except Exception as e:
             logger.error("Ошибка воспроизведения на сервере %d: %s", self.guild_id, e)
-            await self._notify_error(f"⚠️ Ошибка трека **{track.get('title')}**.")
-            
-            if not await self.play_next():
-                logger.info("Очередь прервана из-за ошибки на сервере %d. Начинаю сначала.", self.guild_id)
-                return await self.play_from_start()
-            return True
+            await self._notify_error(f"⚠️ Ошибка при загрузке трека **{track.get('title')}**.")
+            return await self._skip_to_next_on_error(retry_count)
+
+    async def _skip_to_next_on_error(self, retry_count: int) -> bool:
+        """Вспомогательный метод для корректного пропуска битого трека."""
+        next_track = self.queue_manager.get_next_track()
+        if next_track:
+            return await self._play_track(next_track, retry_count + 1)
+        
+        logger.info("Очередь сервера %d пуста после пропуска ошибок", self.guild_id)
+        await self._update_player_ui()
+        self._schedule_disconnect()
+        return False
 
     def _after_playing_callback(self, error: Exception | None, vc: VoiceClient) -> None:
         if error:
