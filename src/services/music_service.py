@@ -275,6 +275,9 @@ class MusicService:
 
             return source
             
+        except (yt_dlp.utils.DownloadError, yt_dlp.utils.ExtractorError) as e:
+            logger.warning(f"Трек недоступен (приватный или удален): {url}. Ошибка: {e}")
+            return None
         except Exception as e:
             logger.error(f"Ошибка при создании аудио-потока: {e}", exc_info=True)
             return None
