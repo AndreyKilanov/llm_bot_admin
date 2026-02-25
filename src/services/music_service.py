@@ -49,8 +49,8 @@ class MusicService:
     }
 
     FFMPEG_OPTIONS = {
-        "before_options": "-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5 -re",
-        "options": "-vn -sn -dn -ar 48000 -ac 2 -af loudnorm",
+        "before_options": "-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5 -reconnect_at_eof 1",
+        "options": "-vn -sn -dn -af loudnorm",
     }
     
     def __new__(cls) -> "MusicService":
@@ -268,7 +268,9 @@ class MusicService:
             
             ffmpeg_options = self.FFMPEG_OPTIONS.copy()
             if start_time > 0:
-                ffmpeg_options["options"] = f"{ffmpeg_options['options']} -ss {int(start_time)}"
+                # ВАЖНО: Использование -ss в before_options обеспечивает быстрый поиск по входу (input seeking),
+                # что критично для стабильной работы при использовании тяжелых фильтров (loudnorm)
+                ffmpeg_options["before_options"] = f"{ffmpeg_options['before_options']} -ss {int(start_time)}"
                 
             source = discord.FFmpegPCMAudio(audio_url, **ffmpeg_options)
             logger.info(f"Аудио-поток создан (позиция: {int(start_time)}с)")
