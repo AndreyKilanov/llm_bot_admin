@@ -33,7 +33,7 @@ EMOJI_PREV_PAGE: Final[str] = "◀"
 EMOJI_NEXT_PAGE: Final[str] = "▶"
 
 # Лимиты
-MAX_SEARCH_RESULTS: Final[int] = 100
+MAX_SEARCH_RESULTS: Final[int] = 50
 
 # Настройки пагинации
 DEFAULT_ITEMS_PER_PAGE: Final[int] = 10
