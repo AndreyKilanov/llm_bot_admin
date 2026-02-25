@@ -8,6 +8,8 @@ ERROR_COLOR: Final[discord.Color] = discord.Color.red()
 SEARCH_COLOR: Final[discord.Color] = discord.Color.blue()
 PROGRESS_BAR_LENGTH: Final[int] = 15
 DEFAULT_VIEW_TIMEOUT: Final[float] = 60.0
+INVISIBLE_SPACER: Final[str] = "⠀" * 35  # Ширина примерно в 5 кнопок Discord
+
 
 # Эмодзи
 EMOJI_PREVIOUS: Final[str] = "⏮️"
