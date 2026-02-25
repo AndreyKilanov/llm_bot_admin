@@ -145,12 +145,6 @@ class MusicPlayerView(BaseMusicView):
         if self._update_task:
             self._update_task.cancel()
 
-        if self.message:
-            await self.message.edit(
-                content=MSG_STOPPED,
-                embed=None,
-                view=None
-            )
         self.stop()
 
     async def _handle_seek(self, interaction: discord.Interaction, seconds: int):
