@@ -82,28 +82,41 @@ class TrackSelectionView(BaseMusicView):
         return max(1, (len(self.tracks) + self.items_per_page - 1) // self.items_per_page)
 
     def _build_buttons(self) -> None:
-        """Создает кнопки выбора треков, пагинации и 'Добавить все'."""
+        """Создает выпадающий список выбора треков, пагинации и 'Добавить все'."""
         self.clear_items()
 
         start_idx = self.current_page * self.items_per_page
         page_tracks = self.tracks[start_idx : start_idx + self.items_per_page]
 
-        for i, _ in enumerate(page_tracks):
+        options = []
+        total_tracks = len(self.tracks)
+        idx_width = len(str(total_tracks))
+
+        for i, track in enumerate(page_tracks):
             index = start_idx + i
-            button = discord.ui.Button(
-                label=f"{i + 1}",
-                style=discord.ButtonStyle.primary,
-                custom_id=f"{ID_SELECT_PREFIX}{i + 1}",
+            title = str(track.get('title') or MSG_UNKNOWN)[:80]
+            uploader = str(track.get('uploader') or MSG_UNKNOWN)[:40]
+            
+            options.append(discord.SelectOption(
+                label=f"{index + 1:>{idx_width}}. {title}",
+                description=uploader,
+                value=str(index)
+            ))
+
+        if options:
+            placeholder = f"Выберите трек из списка...{INVISIBLE_SPACER}"
+            select = discord.ui.Select(
+                placeholder=placeholder[:100],
+                options=options,
+                custom_id="search_select"
             )
-
-            async def callback(
-                interaction: discord.Interaction,
-                idx: int = index
-            ) -> None:
+            
+            async def select_callback(interaction: discord.Interaction):
+                idx = int(interaction.data["values"][0])
                 await self._select_track(interaction, idx)
-
-            button.callback = callback
-            self.add_item(button)
+                
+            select.callback = select_callback
+            self.add_item(select)
 
         add_all_btn = discord.ui.Button(
             label=LABEL_ADD_ALL,
@@ -209,7 +222,6 @@ class TrackSelectionView(BaseMusicView):
             content=MSG_TRACK_ADDED, embed=None, view=None
         )
 
-        # Удаляем сообщение о добавлении через 10 секунд
         asyncio.create_task(self._delete_after(msg, 10.0))
 
         await self._handle_playback_start(self.player, self.ctx)
@@ -232,8 +244,6 @@ class TrackSelectionView(BaseMusicView):
             embed=None,
             view=None,
         )
-
-        # Удаляем сообщение о добавлении через 10 секунд
         asyncio.create_task(self._delete_after(msg, 10.0))
 
         await self._handle_playback_start(self.player, self.ctx)
