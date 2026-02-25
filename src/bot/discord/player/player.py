@@ -267,10 +267,11 @@ class MusicPlayer:
 
     # ==================== Внутренняя логика ====================
 
-    async def _play_track(self, track: TrackData, retry_count: int = 0) -> bool:
+    async def _play_track(self, track: TrackData, retry_count: int = 0, is_retry: bool = False) -> bool:
         if not self.is_connected:
             return False
 
+        if retry_count >= 5:
             logger.error("Слишком много ошибок воспроизведения подряд. Остановка.")
             await self._notify_error("❌ Слишком много ошибок в очереди. Воспроизведение остановлено.")
             await self.stop_playback()
@@ -288,6 +289,11 @@ class MusicPlayer:
             audio_source = await music_service.get_audio_source(url)
 
             if not audio_source:
+                if not is_retry:
+                    logger.warning("Не удалось получить аудио-поток для сервера %d. Пробую еще раз...", self.guild_id)
+                    await asyncio.sleep(1)
+                    return await self._play_track(track, retry_count, is_retry=True)
+                
                 await self._notify_error(f"⚠️ Трек **{title}** недоступен (приватный или удален). Пропускаю...")
                 return await self._skip_to_next_on_error(retry_count)
 
@@ -311,6 +317,11 @@ class MusicPlayer:
 
         except Exception as e:
             logger.error("Ошибка воспроизведения на сервере %d: %s", self.guild_id, e)
+            if not is_retry:
+                logger.info("Повторная попытка воспроизведения трека %s после ошибки...", track.get('title'))
+                await asyncio.sleep(1)
+                return await self._play_track(track, retry_count, is_retry=True)
+                
             await self._notify_error(f"⚠️ Ошибка при загрузке трека **{track.get('title')}**.")
             return await self._skip_to_next_on_error(retry_count)
 
