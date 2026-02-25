@@ -389,7 +389,7 @@ class MusicPlayer:
             # Отключаемся, если бот не играет ИЛИ если он на паузе (простой)
             if not self.is_playing or self.is_paused:
                 logger.info("Таймаут простоя (10 мин) на сервере %d. Отключение.", self.guild_id)
-                await self.voice_handler.disconnect()
+                await self.disconnect()
 
         self._disconnect_task = asyncio.create_task(_delay())
 
@@ -417,7 +417,7 @@ class MusicPlayer:
     async def clear_player_ui(self) -> None:
         if self.player_message:
             try:
-                await self.player_message.edit(content="⏹️ Остановлено.", embed=None, view=None)
+                await self.player_message.delete()
             except Exception:
                 pass
             self.player_message = None
