@@ -29,7 +29,7 @@ EMOJI_PREV_PAGE: Final[str] = "◀"
 EMOJI_NEXT_PAGE: Final[str] = "▶"
 
 # Настройки пагинации
-DEFAULT_ITEMS_PER_PAGE: Final[int] = 5
+DEFAULT_ITEMS_PER_PAGE: Final[int] = 10
 LABEL_PREV_PAGE: Final[str] = f"{EMOJI_PREV_PAGE} Назад"
 LABEL_NEXT_PAGE: Final[str] = f"Вперед {EMOJI_NEXT_PAGE}"
 LABEL_ADD_ALL: Final[str] = "Добавить все"
