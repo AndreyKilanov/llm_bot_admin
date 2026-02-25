@@ -3,9 +3,10 @@
 Содержит логику для музыкального плеера, управления очередью и информационных команд.
 """
 
+import asyncio
 import discord
 from discord.ext import commands
-from typing import Optional
+from typing import Optional, Union
 
 from src.bot.discord.player import MusicPlayer, PlayerFactory
 from src.bot.discord.views import MusicPlayerView, TrackSelectionView, QueuePaginationView
@@ -26,6 +27,28 @@ class CommandHandlers:
     Предоставляет статические и классовые методы для управления музыкальным плеером,
     проверки прав доступа и отправки интерфейса управления.
     """
+
+    @staticmethod
+    async def _delete_with_delay(message: Union[discord.Message, discord.WebhookMessage], delay: float) -> None:
+        """Безопасно удаляет сообщение через указанную задержку.
+
+        Args:
+            message: Сообщение или WebhookMessage для удаления.
+            delay: Задержка в секундах.
+        """
+        try:
+            # Пытаемся использовать нативный delay (доступен для Message)
+            await message.delete(delay=delay)
+        except (TypeError, discord.HTTPException, discord.Forbidden):
+            # Если delay не поддерживается (WebhookMessage) или нет прав
+            async def delayed_delete():
+                await asyncio.sleep(delay)
+                try:
+                    await message.delete()
+                except (discord.NotFound, discord.Forbidden, discord.HTTPException):
+                    pass
+            
+            asyncio.create_task(delayed_delete())
 
     @staticmethod
     def get_player(bot: commands.Bot, guild_id: int) -> MusicPlayer:
@@ -141,12 +164,14 @@ class CommandHandlers:
         tracks = await music_service.search_tracks(query, max_results=MAX_SEARCH_RESULTS)
 
         if not tracks:
-            await status_msg.edit(content=MSG_SEARCH_FAIL, delete_after=10.0)
+            await status_msg.edit(content=MSG_SEARCH_FAIL)
+            await cls._delete_with_delay(status_msg, 10.0)
             return
 
         if len(tracks) == 1:
             track = tracks[0]
-            await status_msg.edit(content=f"{ICON_OK} Трек найден и добавлен: **{track['title']}**", delete_after=10.0)
+            await status_msg.edit(content=f"{ICON_OK} Трек найден и добавлен: **{track['title']}**")
+            await cls._delete_with_delay(status_msg, 10.0)
             await cls.start_playback_sequence(bot, ctx, tracks, v_channel)
             return
 
@@ -185,7 +210,8 @@ class CommandHandlers:
             return
 
         # Редактируем сообщение статуса, показывая успех
-        await status_msg.edit(content=f"{ICON_OK} Трек добавлен: **{info['title']}**", delete_after=10.0)
+        await status_msg.edit(content=f"{ICON_OK} Трек добавлен: **{info['title']}**")
+        await cls._delete_with_delay(status_msg, 10.0)
         await cls.start_playback_sequence(bot, ctx, [info], v_channel)
 
     @classmethod
@@ -214,7 +240,8 @@ class CommandHandlers:
             await status_msg.edit(content=f"{ICON_ERR} Не удалось загрузить плейлист.")
             return
 
-        await status_msg.edit(content=f"{ICON_OK} Найдено {len(tracks)} треков. Добавляю в очередь...", delete_after=10.0)
+        await status_msg.edit(content=f"{ICON_OK} Найдено {len(tracks)} треков. Добавляю в очередь...")
+        await cls._delete_with_delay(status_msg, 10.0)
         await cls.start_playback_sequence(bot, ctx, tracks, v_channel)
 
     @classmethod
