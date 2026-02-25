@@ -152,7 +152,7 @@ class CommandHandlers:
         )
 
         for i, track in enumerate(tracks, 1):
-            length = music_service.format_duration(track["duration"])
+            length = music_service.format_duration(track.get("duration") or 0)
             embed.add_field(
                 name=f"{i}. {track['title'][:100]}",
                 value=f"Канал: {track['uploader']} | {length}",
@@ -346,7 +346,7 @@ class CommandHandlers:
             await ctx.send(MSG_NOTHING_PLAYING)
             return
         track = player.current_track
-        dur = music_service.format_duration(track["duration"])
+        dur = music_service.format_duration(track.get("duration") or 0)
         embed = discord.Embed(title=f"{ICON_MUSIC} Сейчас играет", description=f"**{track['title']}**", color=discord.Color.purple())
         embed.add_field(name="Автор", value=track['uploader'], inline=True)
         embed.add_field(name="Длительность", value=dur, inline=True)
