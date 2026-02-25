@@ -34,6 +34,7 @@ class DiscordBot:
         )
         self.bot.on_ready = self.on_ready
         self.bot.on_message = self.on_message
+        self.bot.on_voice_state_update = self.on_voice_state_update
         self.message_handler = MessageHandler(self.bot)
 
         self._register_commands()
@@ -140,3 +141,18 @@ class DiscordBot:
         """Обработка команд и диалога с LLM."""
         await self.bot.process_commands(message)
         await self.message_handler.handle_message(message)
+
+    async def on_voice_state_update(self, member: discord.Member, before: discord.VoiceState, after: discord.VoiceState) -> None:
+        """Событие изменения состояния голоса. 
+        Обрабатывает выход бота из канала (исключение или ручной выход).
+        """
+        if member.id != self.bot.user.id:
+            return
+
+        # Если бот был в канале, а теперь его нет
+        if before.channel and not after.channel:
+            logger.info("Бот покинул голосовой канал на сервере %d. Очистка...", member.guild.id)
+            # Мы используем PlayerFactory напрямую, чтобы получить существующий плеер
+            player = PlayerFactory.get_player(member.guild.id, self.bot)
+            if player:
+                await player.stop()
