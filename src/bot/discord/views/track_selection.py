@@ -205,9 +205,12 @@ class TrackSelectionView(BaseMusicView):
         track = self.tracks[index]
         self.player.add_to_queue([track])
 
-        await interaction.edit_original_response(
+        msg = await interaction.edit_original_response(
             content=MSG_TRACK_ADDED, embed=None, view=None
         )
+
+        # Удаляем сообщение о добавлении через 10 секунд
+        asyncio.create_task(self._delete_after(msg, 10.0))
 
         await self._handle_playback_start(self.player, self.ctx)
         self.stop()
@@ -224,14 +227,25 @@ class TrackSelectionView(BaseMusicView):
 
         self.player.add_to_queue(self.tracks)
 
-        await interaction.edit_original_response(
+        msg = await interaction.edit_original_response(
             content=MSG_TRACKS_ADDED.format(count=len(self.tracks)),
             embed=None,
             view=None,
         )
 
+        # Удаляем сообщение о добавлении через 10 секунд
+        asyncio.create_task(self._delete_after(msg, 10.0))
+
         await self._handle_playback_start(self.player, self.ctx)
         self.stop()
+
+    async def _delete_after(self, message: discord.Message | discord.InteractionMessage, delay: float) -> None:
+        """Вспомогательный метод для удаления сообщения через заданное время."""
+        await asyncio.sleep(delay)
+        try:
+            await message.delete()
+        except Exception:
+            pass
 
     async def on_timeout(self) -> None:
         """Обработка истечения времени ожидания."""

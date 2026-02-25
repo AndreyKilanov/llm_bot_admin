@@ -92,7 +92,12 @@ class CommandHandlers:
         if not player.is_playing:
             await player.play_from_start()
 
-        await cls.send_player_ui(ctx, player)
+        # UI отправляется только если его еще нет или если нам нужно его показать
+        # Для команд link/playlist мы показываем его, для поиска - он покажется после выбора
+        if not player.player_message:
+            await cls.send_player_ui(ctx, player)
+        else:
+            await player._update_player_ui()
 
     @staticmethod
     async def send_player_ui(ctx: commands.Context, player: MusicPlayer) -> None:
@@ -134,14 +139,16 @@ class CommandHandlers:
         if not v_channel:
             return
 
-        await ctx.send(f"{ICON_SEARCH} Поиск: **{query}**...", delete_after=10.0)
+        status_msg = await ctx.send(f"{ICON_SEARCH} Поиск: **{query}**...")
         tracks = await music_service.search_tracks(query, max_results=MAX_SEARCH_RESULTS)
 
         if not tracks:
-            await ctx.send(MSG_SEARCH_FAIL, delete_after=10.0)
+            await status_msg.edit(content=MSG_SEARCH_FAIL, delete_after=10.0)
             return
 
         if len(tracks) == 1:
+            track = tracks[0]
+            await status_msg.edit(content=f"{ICON_OK} Трек найден и добавлен: **{track['title']}**", delete_after=10.0)
             await cls.start_playback_sequence(bot, ctx, tracks, v_channel)
             return
 
@@ -149,8 +156,9 @@ class CommandHandlers:
         view = TrackSelectionView(tracks, player, ctx)
         embed = view.create_embed()
         
-        message = await ctx.send(embed=embed, view=view)
-        view.message = message
+        # Редактируем сообщение статуса поиска вместо отправки нового
+        await status_msg.edit(content=None, embed=embed, view=view)
+        view.message = status_msg
 
     @classmethod
     async def handle_link(cls, bot: commands.Bot, ctx: commands.Context, url: str) -> None:
@@ -171,13 +179,15 @@ class CommandHandlers:
             await ctx.send(MSG_INVALID_URL, delete_after=10.0)
             return
 
-        await ctx.send(f"{ICON_SEARCH} Загрузка: <{url}>...", delete_after=10.0)
+        status_msg = await ctx.send(f"{ICON_SEARCH} Загрузка: <{url}>...")
         info = await music_service.get_track_info(url)
         
         if not info:
-            await ctx.send(MSG_LOAD_FAIL, delete_after=10.0)
+            await status_msg.edit(content=MSG_LOAD_FAIL)
             return
 
+        # Редактируем сообщение статуса, показывая успех
+        await status_msg.edit(content=f"{ICON_OK} Трек добавлен: **{info['title']}**", delete_after=10.0)
         await cls.start_playback_sequence(bot, ctx, [info], v_channel)
 
     @classmethod
@@ -199,14 +209,14 @@ class CommandHandlers:
             await ctx.send(MSG_INVALID_URL, delete_after=10.0)
             return
 
-        await ctx.send(f"{ICON_SEARCH} Загрузка плейлиста: <{url}>...", delete_after=10.0)
+        status_msg = await ctx.send(f"{ICON_SEARCH} Загрузка плейлиста: <{url}>...")
         tracks = await music_service.get_playlist_info(url)
         
         if not tracks:
-            await ctx.send(f"{ICON_ERR} Не удалось загрузить плейлист.", delete_after=10.0)
+            await status_msg.edit(content=f"{ICON_ERR} Не удалось загрузить плейлист.")
             return
 
-        await ctx.send(f"{ICON_OK} Найдено {len(tracks)} треков. Добавляю в очередь...", delete_after=10.0)
+        await status_msg.edit(content=f"{ICON_OK} Найдено {len(tracks)} треков. Добавляю в очередь...", delete_after=10.0)
         await cls.start_playback_sequence(bot, ctx, tracks, v_channel)
 
     @classmethod
