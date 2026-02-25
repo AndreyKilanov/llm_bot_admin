@@ -54,15 +54,15 @@ class CommandHandlers:
             Голосовой канал автора, если все проверки пройдены, иначе None.
         """
         if not await SettingsService.is_discord_bot_enabled():
-            await ctx.send(MSG_BOT_DISABLED)
+            await ctx.send(MSG_BOT_DISABLED, delete_after=10.0)
             return None
 
         if not await SettingsService.is_discord_music_enabled():
-            await ctx.send(MSG_MUSIC_DISABLED)
+            await ctx.send(MSG_MUSIC_DISABLED, delete_after=10.0)
             return None
 
         if not ctx.author.voice:
-            await ctx.send(MSG_VOICE_REQUIRED)
+            await ctx.send(MSG_VOICE_REQUIRED, delete_after=10.0)
             return None
 
         return ctx.author.voice.channel
@@ -84,7 +84,7 @@ class CommandHandlers:
         player.set_text_channel(ctx.channel)
 
         if not await player.connect(channel):
-            await ctx.send(MSG_CONN_FAIL)
+            await ctx.send(MSG_CONN_FAIL, delete_after=10.0)
             return
 
         player.add_to_queue(tracks)
@@ -134,11 +134,11 @@ class CommandHandlers:
         if not v_channel:
             return
 
-        await ctx.send(f"{ICON_SEARCH} Поиск: **{query}**...")
+        await ctx.send(f"{ICON_SEARCH} Поиск: **{query}**...", delete_after=10.0)
         tracks = await music_service.search_tracks(query, max_results=MAX_SEARCH_RESULTS)
 
         if not tracks:
-            await ctx.send(MSG_SEARCH_FAIL)
+            await ctx.send(MSG_SEARCH_FAIL, delete_after=10.0)
             return
 
         if len(tracks) == 1:
@@ -180,14 +180,14 @@ class CommandHandlers:
             return
             
         if not music_service.is_valid_url(url):
-            await ctx.send(MSG_INVALID_URL)
+            await ctx.send(MSG_INVALID_URL, delete_after=10.0)
             return
 
-        await ctx.send(f"{ICON_SEARCH} Загрузка: <{url}>...")
+        await ctx.send(f"{ICON_SEARCH} Загрузка: <{url}>...", delete_after=10.0)
         info = await music_service.get_track_info(url)
         
         if not info:
-            await ctx.send(MSG_LOAD_FAIL)
+            await ctx.send(MSG_LOAD_FAIL, delete_after=10.0)
             return
 
         await cls.start_playback_sequence(bot, ctx, [info], v_channel)
@@ -208,17 +208,17 @@ class CommandHandlers:
             return
             
         if not music_service.is_valid_url(url):
-            await ctx.send(MSG_INVALID_URL)
+            await ctx.send(MSG_INVALID_URL, delete_after=10.0)
             return
 
-        await ctx.send(f"{ICON_SEARCH} Загрузка плейлиста: <{url}>...")
+        await ctx.send(f"{ICON_SEARCH} Загрузка плейлиста: <{url}>...", delete_after=10.0)
         tracks = await music_service.get_playlist_info(url)
         
         if not tracks:
-            await ctx.send(f"{ICON_ERR} Не удалось загрузить плейлист.")
+            await ctx.send(f"{ICON_ERR} Не удалось загрузить плейлист.", delete_after=10.0)
             return
 
-        await ctx.send(f"{ICON_OK} Найдено {len(tracks)} треков. Добавляю в очередь...")
+        await ctx.send(f"{ICON_OK} Найдено {len(tracks)} треков. Добавляю в очередь...", delete_after=10.0)
         await cls.start_playback_sequence(bot, ctx, tracks, v_channel)
 
     @classmethod
