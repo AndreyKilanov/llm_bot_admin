@@ -37,10 +37,8 @@ class CommandHandlers:
             delay: Задержка в секундах.
         """
         try:
-            # Пытаемся использовать нативный delay (доступен для Message)
             await message.delete(delay=delay)
         except (TypeError, discord.HTTPException, discord.Forbidden):
-            # Если delay не поддерживается (WebhookMessage) или нет прав
             async def delayed_delete():
                 await asyncio.sleep(delay)
                 try:
@@ -178,8 +176,6 @@ class CommandHandlers:
         player = cls.get_player(bot, ctx.guild.id)
         view = TrackSelectionView(tracks, player, ctx)
         embed = view.create_embed()
-        
-        # Редактируем сообщение статуса поиска вместо отправки нового
         await status_msg.edit(content=None, embed=embed, view=view)
         view.message = status_msg
 
@@ -209,7 +205,6 @@ class CommandHandlers:
             await status_msg.edit(content=MSG_LOAD_FAIL)
             return
 
-        # Редактируем сообщение статуса, показывая успех
         await status_msg.edit(content=f"{ICON_OK} Трек добавлен: **{info['title']}**")
         await cls._delete_with_delay(status_msg, 10.0)
         await cls.start_playback_sequence(bot, ctx, [info], v_channel)
@@ -332,7 +327,7 @@ class CommandHandlers:
         await player.stop()
         await player.disconnect()
         PlayerFactory.remove_player(ctx.guild.id)
-        await ctx.send(f"{ICON_STOP} Плеер остановлен.")
+        await ctx.send(f"{ICON_STOP} Плеер остановлен.", delete_after=10.0)
 
     @classmethod
     async def handle_queue(cls, bot: commands.Bot, ctx: commands.Context) -> None:
