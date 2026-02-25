@@ -10,7 +10,6 @@ from src.bot.discord.player import LoopMode
 from .base import BaseMusicView
 from .constants import (
     DEFAULT_EMBED_COLOR,
-    SUCCESS_COLOR,
     PROGRESS_BAR_LENGTH,
     EMOJI_PREVIOUS,
     EMOJI_PLAY,
@@ -33,10 +32,6 @@ from .constants import (
     MSG_ERR_NO_ACTIVE_TRACK,
     MSG_ERR_SEEK_FAIL,
     MSG_ERR_QUEUE_EMPTY,
-    MSG_QUEUE_TITLE,
-    MSG_QUEUE_TOTAL,
-    MSG_TRACK_INFO,
-    MSG_QUEUE_EXTENDED,
     MSG_LOOP_CHANGED,
     MSG_LOOP_OFF,
     MSG_LOOP_TRACK,
@@ -53,7 +48,6 @@ from .constants import (
     MSG_STATUS_PLAYING,
     MSG_STATUS_FINISHED,
     MSG_PLAYER_FOOTER,
-    MSG_UNKNOWN,
     INVISIBLE_SPACER,
 )
 
