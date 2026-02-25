@@ -122,7 +122,25 @@ class MusicPlayer:
                 return False
             return await self._play_track(track)
 
+    async def play_at_index(self, index: int) -> bool:
+        """Воспроизвести трек по указанному индексу в очереди.
+
+        Args:
+            index: Индекс трека (0-based).
+
+        Returns:
+            bool: True если воспроизведение запущено, иначе False.
+        """
+        async with self._play_lock:
+            if index < 0 or index >= len(self.queue):
+                return False
+            
+            track = self.queue[index]
+            self.queue_manager.current_index = index
+            return await self._play_track(track)
+
     async def play_from_start(self) -> bool:
+        """Начать воспроизведение с первого трека в очереди."""
         async with self._play_lock:
             if not self.queue:
                 return False
@@ -288,7 +306,11 @@ class MusicPlayer:
         except Exception as e:
             logger.error("Ошибка воспроизведения на сервере %d: %s", self.guild_id, e)
             await self._notify_error(f"⚠️ Ошибка трека **{track.get('title')}**.")
-            return await self.play_next()
+            
+            if not await self.play_next():
+                logger.info("Очередь прервана из-за ошибки на сервере %d. Начинаю сначала.", self.guild_id)
+                return await self.play_from_start()
+            return True
 
     def _after_playing_callback(self, error: Exception | None, vc: VoiceClient) -> None:
         if error:
