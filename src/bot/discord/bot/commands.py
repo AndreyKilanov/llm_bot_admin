@@ -145,22 +145,10 @@ class CommandHandlers:
             await cls.start_playback_sequence(bot, ctx, tracks, v_channel)
             return
 
-        embed = discord.Embed(
-            title=f"{ICON_MUSIC} Результаты поиска",
-            description="Выберите подходящий трек из списка ниже:",
-            color=discord.Color.blue()
-        )
-
-        for i, track in enumerate(tracks, 1):
-            length = music_service.format_duration(track.get("duration") or 0)
-            embed.add_field(
-                name=f"{i}. {track['title'][:100]}",
-                value=f"Канал: {track['uploader']} | {length}",
-                inline=False
-            )
-
         player = cls.get_player(bot, ctx.guild.id)
         view = TrackSelectionView(tracks, player, ctx)
+        embed = view.create_embed()
+        
         message = await ctx.send(embed=embed, view=view)
         view.message = message
 
