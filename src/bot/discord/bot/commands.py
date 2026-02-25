@@ -16,9 +16,9 @@ from .constants import (
     ICON_ROBOT, ICON_SPARKLE, ICON_INFO, ICON_ERR, ICON_OK,
     MSG_BOT_DISABLED, MSG_MUSIC_DISABLED, MSG_VOICE_REQUIRED,
     MSG_SEARCH_FAIL, MSG_CONN_FAIL, MSG_LOAD_FAIL, MSG_INVALID_URL,
-    MSG_NOTHING_PLAYING, MSG_PLAYER_MISSING, MSG_QUEUE_EMPTY,
-    MAX_SEARCH_RESULTS
+    MSG_NOTHING_PLAYING, MSG_PLAYER_MISSING, MSG_QUEUE_EMPTY
 )
+from src.bot.discord.views.constants import MAX_SEARCH_RESULTS
 
 class CommandHandlers:
     """Класс, содержащий логику обработки команд Discord бота.
@@ -92,8 +92,6 @@ class CommandHandlers:
         if not player.is_playing:
             await player.play_from_start()
 
-        # UI отправляется только если его еще нет или если нам нужно его показать
-        # Для команд link/playlist мы показываем его, для поиска - он покажется после выбора
         if not player.player_message:
             await cls.send_player_ui(ctx, player)
         else:
