@@ -21,6 +21,7 @@ from .constants import (
     MSG_SELECTION_TIMEOUT,
     MSG_SEARCH_FOOTER,
     MSG_UPLOADER_INFO,
+    INVISIBLE_SPACER,
 )
 
 if TYPE_CHECKING:
@@ -147,23 +148,22 @@ class TrackSelectionView(BaseMusicView):
         end_idx = start_idx + self.items_per_page
         page_tracks = self.tracks[start_idx:end_idx]
 
+        total_tracks = len(self.tracks)
+        idx_width = len(str(total_tracks))
+
         for i, track in enumerate(page_tracks, 1):
             duration = music_service.format_duration(track.get("duration") or 0)
-            title = track.get("title", MSG_UNKNOWN)[:100]
+            title = track.get("title", MSG_UNKNOWN)[:80]
             uploader = track.get("uploader", MSG_UNKNOWN)
 
             embed.add_field(
-                name=f"{i}. {title}",
+                name=f"{i + (self.current_page * self.items_per_page):>{idx_width}}. {title}",
                 value=MSG_UPLOADER_INFO.format(uploader=uploader, duration=duration),
                 inline=False,
             )
 
         embed.set_footer(
-            text=MSG_SEARCH_FOOTER.format(
-                total=len(self.tracks),
-                current=self.current_page + 1,
-                pages=self.total_pages
-            )
+            text=f"{MSG_SEARCH_FOOTER.format(total=len(self.tracks), current=self.current_page + 1, pages=self.total_pages)}{INVISIBLE_SPACER}"
         )
         return embed
 
