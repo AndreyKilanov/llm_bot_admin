@@ -175,6 +175,7 @@ class MusicPlayer:
         self.voice_handler.stop_vc()
         self.queue_manager.clear()
         self._reset_playback_state()
+        await self.clear_player_ui()
         logger.info("Остановка и очистка на сервере %d", self.guild_id)
         self._schedule_disconnect()
 
@@ -270,8 +271,6 @@ class MusicPlayer:
         if not self.is_connected:
             return False
 
-        # Защита от бесконечного цикла, если вся очередь битая (например, 10 подряд)
-        if retry_count > 10:
             logger.error("Слишком много ошибок воспроизведения подряд. Остановка.")
             await self._notify_error("❌ Слишком много ошибок в очереди. Воспроизведение остановлено.")
             await self.stop_playback()
@@ -354,7 +353,7 @@ class MusicPlayer:
     async def _notify_error(self, message: str) -> None:
         if self.text_channel:
             try:
-                await self.text_channel.send(message)
+                await self.text_channel.send(message, delete_after=10.0)
             except Exception:
                 pass
 
