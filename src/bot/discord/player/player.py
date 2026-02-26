@@ -410,9 +410,9 @@ class MusicPlayer:
     async def _update_player_ui(self) -> None:
         if self.text_channel and self.player_view:
             try:
-                await self.player_view._update_player_message()
-            except Exception:
-                pass
+                await self.player_view.update_player_message()
+            except Exception as e:
+                logger.warning("Не удалось обновить UI плеера на сервере %d: %s", self.guild_id, e)
 
     async def clear_player_ui(self) -> None:
         if self.player_message:
