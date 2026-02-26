@@ -79,11 +79,20 @@ class MusicPlayerView(BaseMusicView):
             return
 
         async def update_loop():
+            last_state = None
             try:
                 while True:
                     await asyncio.sleep(1.0)
-                    if self.player.is_playing:
+                    is_playing = self.player.is_playing
+                    is_paused = self.player.is_paused
+                    
+                    # Обновляем если:
+                    # 1. Музыка активно играет (нужен прогресс-бар)
+                    # 2. Любое состояние изменилось (пауза, стоп, конец трека)
+                    current_state = (is_playing, is_paused)
+                    if (is_playing and not is_paused) or (current_state != last_state):
                         await self.update_player_message()
+                        last_state = current_state
             except asyncio.CancelledError:
                 pass
             except Exception as e:
@@ -242,7 +251,9 @@ class MusicPlayerView(BaseMusicView):
                 continue
 
             if item.custom_id == "pause_resume":
-                item.emoji = EMOJI_PLAY if (self.player.is_paused or (not self.player.is_playing and self.player.queue)) else EMOJI_PAUSE
+                show_play = self.player.is_paused or not self.player.is_playing
+                item.emoji = EMOJI_PLAY if show_play else EMOJI_PAUSE
+                item.style = discord.ButtonStyle.secondary if show_play else discord.ButtonStyle.primary
 
             elif item.custom_id == "loop_mode":
                 self._update_loop_button(item)
