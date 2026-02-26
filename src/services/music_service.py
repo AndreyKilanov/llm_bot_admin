@@ -49,8 +49,8 @@ class MusicService:
     }
 
     FFMPEG_OPTIONS = {
-        "before_options": "-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5",
-        "options": "-vn",
+        "before_options": "-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5 -reconnect_at_eof 1",
+        "options": "-vn -sn -dn -af loudnorm",
     }
     
     def __new__(cls) -> "MusicService":
@@ -125,11 +125,11 @@ class MusicService:
             for entry in data["entries"]:
                 if entry:
                     track_info = {
-                        "title": entry.get("title", "Неизвестно"),
+                        "title": entry.get("title") or "Неизвестно",
                         "url": entry.get("webpage_url") or entry.get("url", ""),
-                        "duration": entry.get("duration", 0),
-                        "thumbnail": entry.get("thumbnail", ""),
-                        "uploader": entry.get("uploader", "Неизвестно"),
+                        "duration": entry.get("duration") or 0,
+                        "thumbnail": entry.get("thumbnail") or "",
+                        "uploader": entry.get("uploader") or "Неизвестно",
                         "id": entry.get("id", ""),
                     }
                     tracks.append(track_info)
@@ -169,12 +169,17 @@ class MusicService:
             if not data:
                 return None
             
+            if "entries" in data:
+                if not data["entries"]:
+                    return None
+                data = data["entries"][0]
+
             info = {
-                "title": data.get("title", "Неизвестно"),
+                "title": data.get("title") or "Неизвестно",
                 "url": data.get("webpage_url") or data.get("url", ""),
-                "duration": data.get("duration", 0),
-                "thumbnail": data.get("thumbnail", ""),
-                "uploader": data.get("uploader", "Неизвестно"),
+                "duration": data.get("duration") or 0,
+                "thumbnail": data.get("thumbnail") or "",
+                "uploader": data.get("uploader") or "Неизвестно",
                 "id": data.get("id", ""),
             }
             
@@ -198,11 +203,15 @@ class MusicService:
         logger.info(f"Получение информации о плейлисте: {url}")
         
         try:
+            opts = self.YTDL_OPTIONS.copy()
+            opts["noplaylist"] = False
+            
             loop = asyncio.get_event_loop()
             data = await loop.run_in_executor(
                 None,
-                lambda: self.ytdl.extract_info(url, download=False)
+                lambda: yt_dlp.YoutubeDL(opts).extract_info(url, download=False)
             )
+
             
             if not data or "entries" not in data:
                 logger.warning(f"Плейлист пуст или не найден: {url}")
@@ -212,11 +221,11 @@ class MusicService:
             for entry in data["entries"]:
                 if entry:
                     track_info = {
-                        "title": entry.get("title", "Неизвестно"),
+                        "title": entry.get("title") or "Неизвестно",
                         "url": entry.get("webpage_url") or entry.get("url", ""),
-                        "duration": entry.get("duration", 0),
-                        "thumbnail": entry.get("thumbnail", ""),
-                        "uploader": entry.get("uploader", "Неизвестно"),
+                        "duration": entry.get("duration") or 0,
+                        "thumbnail": entry.get("thumbnail") or "",
+                        "uploader": entry.get("uploader") or "Неизвестно",
                         "id": entry.get("id", ""),
                     }
                     tracks.append(track_info)
@@ -259,13 +268,18 @@ class MusicService:
             
             ffmpeg_options = self.FFMPEG_OPTIONS.copy()
             if start_time > 0:
-                ffmpeg_options["options"] = f"{ffmpeg_options['options']} -ss {int(start_time)}"
+                # ВАЖНО: Использование -ss в before_options обеспечивает быстрый поиск по входу (input seeking),
+                # что критично для стабильной работы при использовании тяжелых фильтров (loudnorm)
+                ffmpeg_options["before_options"] = f"{ffmpeg_options['before_options']} -ss {int(start_time)}"
                 
             source = discord.FFmpegPCMAudio(audio_url, **ffmpeg_options)
             logger.info(f"Аудио-поток создан (позиция: {int(start_time)}с)")
 
             return source
             
+        except (yt_dlp.utils.DownloadError, yt_dlp.utils.ExtractorError) as e:
+            logger.warning(f"Трек недоступен (приватный или удален): {url}. Ошибка: {e}")
+            return None
         except Exception as e:
             logger.error(f"Ошибка при создании аудио-потока: {e}", exc_info=True)
             return None
@@ -280,12 +294,20 @@ class MusicService:
         Returns:
             Отформатированная строка (например, "3:45" или "1:23:45")
         """
-        if seconds == 0:
+        if not seconds:
             return "Неизвестно"
         
-        hours = int(seconds // 3600)
-        minutes = int((seconds % 3600) // 60)
-        secs = int(seconds % 60)
+        try:
+            seconds_val = int(seconds)
+        except (TypeError, ValueError):
+            return "Неизвестно"
+
+        if seconds_val <= 0:
+            return "Неизвестно"
+        
+        hours = seconds_val // 3600
+        minutes = (seconds_val % 3600) // 60
+        secs = seconds_val % 60
         
         if hours > 0:
             return f"{hours}:{minutes:02d}:{secs:02d}"

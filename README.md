@@ -134,8 +134,9 @@ docker compose up -d --build
 
 ## 📝 Разработка и обслуживание
 
-- **Логи**: `docker compose logs -f bot`
-- **Миграции**: Автоматически применяются при запуске через `aerich`.
+- **Запуск локально (без Docker)**: используется `uv sync` для установки и `uv run python -m src.main` для запуска.
+- **Логи**: `docker compose logs -f app`
+- **Миграции**: Автоматически применяются при запуске через `aerich` (или `uv run aerich` локально).
 - **Сброс данных**: `docker compose down -v`
 
 ---

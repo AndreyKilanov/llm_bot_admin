@@ -8,6 +8,10 @@ ERROR_COLOR: Final[discord.Color] = discord.Color.red()
 SEARCH_COLOR: Final[discord.Color] = discord.Color.blue()
 PROGRESS_BAR_LENGTH: Final[int] = 15
 DEFAULT_VIEW_TIMEOUT: Final[float] = 60.0
+# Ширина окна (количество невидимых символов в футере)
+UI_WIDTH: Final[int] = 35
+INVISIBLE_SPACER: Final[str] = "⠀" * UI_WIDTH
+
 
 # Эмодзи
 EMOJI_PREVIOUS: Final[str] = "⏮️"
@@ -28,8 +32,11 @@ EMOJI_TIMEOUT: Final[str] = "⏱️"
 EMOJI_PREV_PAGE: Final[str] = "◀"
 EMOJI_NEXT_PAGE: Final[str] = "▶"
 
+# Лимиты
+MAX_SEARCH_RESULTS: Final[int] = 50
+
 # Настройки пагинации
-DEFAULT_ITEMS_PER_PAGE: Final[int] = 5
+DEFAULT_ITEMS_PER_PAGE: Final[int] = 10
 LABEL_PREV_PAGE: Final[str] = f"{EMOJI_PREV_PAGE} Назад"
 LABEL_NEXT_PAGE: Final[str] = f"Вперед {EMOJI_NEXT_PAGE}"
 LABEL_ADD_ALL: Final[str] = "Добавить все"

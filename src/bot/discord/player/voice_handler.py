@@ -44,44 +44,68 @@ class VoiceHandler:
     async def connect(self, channel: VoiceChannel) -> bool:
         """Подключиться к голосовому каналу.
 
+        Реализует отказоустойчивое подключение, обрабатывая "фантомные" сессии
+        после перезапуска бота и принудительно очищая состояние при сбоях.
+
         Args:
             channel: Канал для подключения.
 
         Returns:
-            True, если успешно.
+            True, если успешно подключено.
         """
         self._voice_channel = channel
         guild = self.bot.get_guild(self.guild_id)
         if not guild:
             return False
 
-        vc = guild.voice_client
+        vc: VoiceClient | None = guild.voice_client
 
-        if vc and vc.channel and vc.channel.id == channel.id and vc.is_connected():
+        if vc and vc.is_connected() and vc.channel and vc.channel.id == channel.id:
             return True
 
-        if vc:
+        needs_reset = False
+        if vc and not vc.is_connected():
+            needs_reset = True
+            logger.warning("VoiceClient на сервере %d не в сети. Сброс...", self.guild_id)
+        elif guild.me.voice and not vc:
+            needs_reset = True
+            logger.warning("Обнаружена фантомная сессия на сервере %d. Очистка...", self.guild_id)
+
+        if needs_reset:
             try:
-                if vc.channel and vc.channel.id != channel.id:
-                    logger.info("Перемещение на сервере %d в канал %s", self.guild_id, channel.name)
-                    await vc.move_to(channel)
-                    return True
-                
-                if not vc.is_connected():
+                if vc:
                     await vc.disconnect(force=True)
+                else:
+                    await guild.change_voice_state(channel=None)
+                await asyncio.sleep(1.0)
             except Exception as e:
-                logger.error("Ошибка подготовки VoiceClient на сервере %d: %s", self.guild_id, e)
+                logger.debug("Ошибка при сбросе состояния голоса (игнорируется): %s", e)
+
+        if vc and vc.is_connected() and vc.channel and vc.channel.id != channel.id:
+            try:
+                logger.info("Перемещение на сервере %d: %s -> %s", self.guild_id, vc.channel.name, channel.name)
+                await vc.move_to(channel)
+                return True
+            except Exception as e:
+                logger.error("Ошибка перемещения на сервере %d: %s. Пробую переподключиться.", self.guild_id, e)
                 try:
                     await vc.disconnect(force=True)
-                except Exception:
+                    await asyncio.sleep(0.5)
+                except:
                     pass
 
         try:
+            logger.info("Подключение к голосовому каналу '%s' сервера %d...", channel.name, self.guild_id)
             await channel.connect(timeout=CONNECT_TIMEOUT, reconnect=True)
-            logger.info("Подключен к каналу %s сервера %d", channel.name, self.guild_id)
             return True
         except Exception as e:
             logger.error("Ошибка подключения на сервере %d: %s", self.guild_id, e)
+            current_vc = guild.voice_client
+            if current_vc:
+                try:
+                    await current_vc.disconnect(force=True)
+                except:
+                    pass
             return False
 
     async def disconnect(self) -> None:

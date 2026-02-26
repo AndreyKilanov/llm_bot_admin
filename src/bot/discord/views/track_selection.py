@@ -1,3 +1,4 @@
+import asyncio
 from typing import TYPE_CHECKING, Final
 
 import discord
@@ -21,6 +22,7 @@ from .constants import (
     MSG_SELECTION_TIMEOUT,
     MSG_SEARCH_FOOTER,
     MSG_UPLOADER_INFO,
+    INVISIBLE_SPACER,
 )
 
 if TYPE_CHECKING:
@@ -81,28 +83,41 @@ class TrackSelectionView(BaseMusicView):
         return max(1, (len(self.tracks) + self.items_per_page - 1) // self.items_per_page)
 
     def _build_buttons(self) -> None:
-        """Создает кнопки выбора треков, пагинации и 'Добавить все'."""
+        """Создает выпадающий список выбора треков, пагинации и 'Добавить все'."""
         self.clear_items()
 
         start_idx = self.current_page * self.items_per_page
         page_tracks = self.tracks[start_idx : start_idx + self.items_per_page]
 
-        for i, _ in enumerate(page_tracks):
+        options = []
+        total_tracks = len(self.tracks)
+        idx_width = len(str(total_tracks))
+
+        for i, track in enumerate(page_tracks):
             index = start_idx + i
-            button = discord.ui.Button(
-                label=f"{i + 1}",
-                style=discord.ButtonStyle.primary,
-                custom_id=f"{ID_SELECT_PREFIX}{i + 1}",
+            title = str(track.get('title') or MSG_UNKNOWN)[:80]
+            uploader = str(track.get('uploader') or MSG_UNKNOWN)[:40]
+            
+            options.append(discord.SelectOption(
+                label=f"{index + 1:>{idx_width}}. {title}",
+                description=uploader,
+                value=str(index)
+            ))
+
+        if options:
+            placeholder = f"Выберите трек из списка...{INVISIBLE_SPACER}"
+            select = discord.ui.Select(
+                placeholder=placeholder[:100],
+                options=options,
+                custom_id="search_select"
             )
-
-            async def callback(
-                interaction: discord.Interaction,
-                idx: int = index
-            ) -> None:
+            
+            async def select_callback(interaction: discord.Interaction):
+                idx = int(interaction.data["values"][0])
                 await self._select_track(interaction, idx)
-
-            button.callback = callback
-            self.add_item(button)
+                
+            select.callback = select_callback
+            self.add_item(select)
 
         add_all_btn = discord.ui.Button(
             label=LABEL_ADD_ALL,
@@ -147,23 +162,22 @@ class TrackSelectionView(BaseMusicView):
         end_idx = start_idx + self.items_per_page
         page_tracks = self.tracks[start_idx:end_idx]
 
+        total_tracks = len(self.tracks)
+        idx_width = len(str(total_tracks))
+
         for i, track in enumerate(page_tracks, 1):
-            duration = music_service.format_duration(track.get("duration", 0))
-            title = track.get("title", MSG_UNKNOWN)[:100]
+            duration = music_service.format_duration(track.get("duration") or 0)
+            title = track.get("title", MSG_UNKNOWN)[:80]
             uploader = track.get("uploader", MSG_UNKNOWN)
 
             embed.add_field(
-                name=f"{i}. {title}",
+                name=f"{i + (self.current_page * self.items_per_page):>{idx_width}}. {title}",
                 value=MSG_UPLOADER_INFO.format(uploader=uploader, duration=duration),
                 inline=False,
             )
 
         embed.set_footer(
-            text=MSG_SEARCH_FOOTER.format(
-                total=len(self.tracks),
-                current=self.current_page + 1,
-                pages=self.total_pages
-            )
+            text=f"{MSG_SEARCH_FOOTER.format(total=len(self.tracks), current=self.current_page + 1, pages=self.total_pages)}{INVISIBLE_SPACER}"
         )
         return embed
 
@@ -205,9 +219,11 @@ class TrackSelectionView(BaseMusicView):
         track = self.tracks[index]
         self.player.add_to_queue([track])
 
-        await interaction.edit_original_response(
+        msg = await interaction.edit_original_response(
             content=MSG_TRACK_ADDED, embed=None, view=None
         )
+
+        asyncio.create_task(self._delete_after(msg, 10.0))
 
         await self._handle_playback_start(self.player, self.ctx)
         self.stop()
@@ -224,14 +240,23 @@ class TrackSelectionView(BaseMusicView):
 
         self.player.add_to_queue(self.tracks)
 
-        await interaction.edit_original_response(
+        msg = await interaction.edit_original_response(
             content=MSG_TRACKS_ADDED.format(count=len(self.tracks)),
             embed=None,
             view=None,
         )
+        asyncio.create_task(self._delete_after(msg, 10.0))
 
         await self._handle_playback_start(self.player, self.ctx)
         self.stop()
+
+    async def _delete_after(self, message: discord.Message | discord.InteractionMessage, delay: float) -> None:
+        """Вспомогательный метод для удаления сообщения через заданное время."""
+        await asyncio.sleep(delay)
+        try:
+            await message.delete()
+        except Exception:
+            pass
 
     async def on_timeout(self) -> None:
         """Обработка истечения времени ожидания."""

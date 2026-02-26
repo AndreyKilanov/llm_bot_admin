@@ -3,9 +3,10 @@
 Содержит логику для музыкального плеера, управления очередью и информационных команд.
 """
 
+import asyncio
 import discord
 from discord.ext import commands
-from typing import Optional
+from typing import Optional, Union
 
 from src.bot.discord.player import MusicPlayer, PlayerFactory
 from src.bot.discord.views import MusicPlayerView, TrackSelectionView, QueuePaginationView
@@ -16,9 +17,9 @@ from .constants import (
     ICON_ROBOT, ICON_SPARKLE, ICON_INFO, ICON_ERR, ICON_OK,
     MSG_BOT_DISABLED, MSG_MUSIC_DISABLED, MSG_VOICE_REQUIRED,
     MSG_SEARCH_FAIL, MSG_CONN_FAIL, MSG_LOAD_FAIL, MSG_INVALID_URL,
-    MSG_NOTHING_PLAYING, MSG_PLAYER_MISSING, MSG_QUEUE_EMPTY,
-    MAX_SEARCH_RESULTS
+    MSG_NOTHING_PLAYING, MSG_PLAYER_MISSING, MSG_QUEUE_EMPTY
 )
+from src.bot.discord.views.constants import MAX_SEARCH_RESULTS
 
 class CommandHandlers:
     """Класс, содержащий логику обработки команд Discord бота.
@@ -26,6 +27,26 @@ class CommandHandlers:
     Предоставляет статические и классовые методы для управления музыкальным плеером,
     проверки прав доступа и отправки интерфейса управления.
     """
+
+    @staticmethod
+    async def _delete_with_delay(message: Union[discord.Message, discord.WebhookMessage], delay: float) -> None:
+        """Безопасно удаляет сообщение через указанную задержку.
+
+        Args:
+            message: Сообщение или WebhookMessage для удаления.
+            delay: Задержка в секундах.
+        """
+        try:
+            await message.delete(delay=delay)
+        except (TypeError, discord.HTTPException, discord.Forbidden):
+            async def delayed_delete():
+                await asyncio.sleep(delay)
+                try:
+                    await message.delete()
+                except (discord.NotFound, discord.Forbidden, discord.HTTPException):
+                    pass
+            
+            asyncio.create_task(delayed_delete())
 
     @staticmethod
     def get_player(bot: commands.Bot, guild_id: int) -> MusicPlayer:
@@ -54,15 +75,15 @@ class CommandHandlers:
             Голосовой канал автора, если все проверки пройдены, иначе None.
         """
         if not await SettingsService.is_discord_bot_enabled():
-            await ctx.send(MSG_BOT_DISABLED)
+            await ctx.send(MSG_BOT_DISABLED, delete_after=10.0)
             return None
 
         if not await SettingsService.is_discord_music_enabled():
-            await ctx.send(MSG_MUSIC_DISABLED)
+            await ctx.send(MSG_MUSIC_DISABLED, delete_after=10.0)
             return None
 
         if not ctx.author.voice:
-            await ctx.send(MSG_VOICE_REQUIRED)
+            await ctx.send(MSG_VOICE_REQUIRED, delete_after=10.0)
             return None
 
         return ctx.author.voice.channel
@@ -84,7 +105,7 @@ class CommandHandlers:
         player.set_text_channel(ctx.channel)
 
         if not await player.connect(channel):
-            await ctx.send(MSG_CONN_FAIL)
+            await ctx.send(MSG_CONN_FAIL, delete_after=10.0)
             return
 
         player.add_to_queue(tracks)
@@ -92,7 +113,10 @@ class CommandHandlers:
         if not player.is_playing:
             await player.play_from_start()
 
-        await cls.send_player_ui(ctx, player)
+        if not player.player_message:
+            await cls.send_player_ui(ctx, player)
+        else:
+            await player._update_player_ui()
 
     @staticmethod
     async def send_player_ui(ctx: commands.Context, player: MusicPlayer) -> None:
@@ -134,35 +158,26 @@ class CommandHandlers:
         if not v_channel:
             return
 
-        await ctx.send(f"{ICON_SEARCH} Поиск: **{query}**...")
+        status_msg = await ctx.send(f"{ICON_SEARCH} Поиск: **{query}**...")
         tracks = await music_service.search_tracks(query, max_results=MAX_SEARCH_RESULTS)
 
         if not tracks:
-            await ctx.send(MSG_SEARCH_FAIL)
+            await status_msg.edit(content=MSG_SEARCH_FAIL)
+            await cls._delete_with_delay(status_msg, 10.0)
             return
 
         if len(tracks) == 1:
+            track = tracks[0]
+            await status_msg.edit(content=f"{ICON_OK} Трек найден и добавлен: **{track['title']}**")
+            await cls._delete_with_delay(status_msg, 10.0)
             await cls.start_playback_sequence(bot, ctx, tracks, v_channel)
             return
 
-        embed = discord.Embed(
-            title=f"{ICON_MUSIC} Результаты поиска",
-            description="Выберите подходящий трек из списка ниже:",
-            color=discord.Color.blue()
-        )
-
-        for i, track in enumerate(tracks, 1):
-            length = music_service.format_duration(track["duration"])
-            embed.add_field(
-                name=f"{i}. {track['title'][:100]}",
-                value=f"Канал: {track['uploader']} | {length}",
-                inline=False
-            )
-
         player = cls.get_player(bot, ctx.guild.id)
         view = TrackSelectionView(tracks, player, ctx)
-        message = await ctx.send(embed=embed, view=view)
-        view.message = message
+        embed = view.create_embed()
+        await status_msg.edit(content=None, embed=embed, view=view)
+        view.message = status_msg
 
     @classmethod
     async def handle_link(cls, bot: commands.Bot, ctx: commands.Context, url: str) -> None:
@@ -180,16 +195,18 @@ class CommandHandlers:
             return
             
         if not music_service.is_valid_url(url):
-            await ctx.send(MSG_INVALID_URL)
+            await ctx.send(MSG_INVALID_URL, delete_after=10.0)
             return
 
-        await ctx.send(f"{ICON_SEARCH} Загрузка: <{url}>...")
+        status_msg = await ctx.send(f"{ICON_SEARCH} Загрузка: <{url}>...")
         info = await music_service.get_track_info(url)
         
         if not info:
-            await ctx.send(MSG_LOAD_FAIL)
+            await status_msg.edit(content=MSG_LOAD_FAIL)
             return
 
+        await status_msg.edit(content=f"{ICON_OK} Трек добавлен: **{info['title']}**")
+        await cls._delete_with_delay(status_msg, 10.0)
         await cls.start_playback_sequence(bot, ctx, [info], v_channel)
 
     @classmethod
@@ -208,17 +225,18 @@ class CommandHandlers:
             return
             
         if not music_service.is_valid_url(url):
-            await ctx.send(MSG_INVALID_URL)
+            await ctx.send(MSG_INVALID_URL, delete_after=10.0)
             return
 
-        await ctx.send(f"{ICON_SEARCH} Загрузка плейлиста: <{url}>...")
+        status_msg = await ctx.send(f"{ICON_SEARCH} Загрузка плейлиста: <{url}>...")
         tracks = await music_service.get_playlist_info(url)
         
         if not tracks:
-            await ctx.send(f"{ICON_ERR} Не удалось загрузить плейлист.")
+            await status_msg.edit(content=f"{ICON_ERR} Не удалось загрузить плейлист.")
             return
 
-        await ctx.send(f"{ICON_OK} Найдено {len(tracks)} треков. Добавляю в очередь...")
+        await status_msg.edit(content=f"{ICON_OK} Найдено {len(tracks)} треков. Добавляю в очередь...")
+        await cls._delete_with_delay(status_msg, 10.0)
         await cls.start_playback_sequence(bot, ctx, tracks, v_channel)
 
     @classmethod
@@ -309,7 +327,7 @@ class CommandHandlers:
         await player.stop()
         await player.disconnect()
         PlayerFactory.remove_player(ctx.guild.id)
-        await ctx.send(f"{ICON_STOP} Плеер остановлен.")
+        await ctx.send(f"{ICON_STOP} Плеер остановлен.", delete_after=10.0)
 
     @classmethod
     async def handle_queue(cls, bot: commands.Bot, ctx: commands.Context) -> None:
@@ -346,7 +364,7 @@ class CommandHandlers:
             await ctx.send(MSG_NOTHING_PLAYING)
             return
         track = player.current_track
-        dur = music_service.format_duration(track["duration"])
+        dur = music_service.format_duration(track.get("duration") or 0)
         embed = discord.Embed(title=f"{ICON_MUSIC} Сейчас играет", description=f"**{track['title']}**", color=discord.Color.purple())
         embed.add_field(name="Автор", value=track['uploader'], inline=True)
         embed.add_field(name="Длительность", value=dur, inline=True)
