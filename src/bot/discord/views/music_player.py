@@ -85,10 +85,6 @@ class MusicPlayerView(BaseMusicView):
                     await asyncio.sleep(1.0)
                     is_playing = self.player.is_playing
                     is_paused = self.player.is_paused
-                    
-                    # Обновляем если:
-                    # 1. Музыка активно играет (нужен прогресс-бар)
-                    # 2. Любое состояние изменилось (пауза, стоп, конец трека)
                     current_state = (is_playing, is_paused)
                     if (is_playing and not is_paused) or (current_state != last_state):
                         await self.update_player_message()
@@ -114,7 +110,6 @@ class MusicPlayerView(BaseMusicView):
         """Кнопка переключения состояния пауза/воспроизведение."""
         await interaction.response.defer()
 
-        # Случай, если плеер остановлен, но в очереди есть треки
         if not self.player.is_playing and not self.player.is_paused and self.player.queue:
             if await self.player.play_from_start():
                 await self.update_player_message()
