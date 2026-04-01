@@ -143,16 +143,45 @@ class DiscordBot:
         await self.message_handler.handle_message(message)
 
     async def on_voice_state_update(self, member: discord.Member, before: discord.VoiceState, after: discord.VoiceState) -> None:
-        """Событие изменения состояния голоса. 
-        Обрабатывает выход бота из канала (исключение или ручной выход).
+        """Событие изменения состояния голоса.
+
+        Различает два сценария:
+
+        - **Штатный выход** (через команду ``/stop``) — определяется флагом
+          ``VoiceHandler._intentional_disconnect``. Плеер полностью останавливается.
+        - **Принудительное выталкивание** (server mute, kick из канала и т.п.) —
+          игнорируется. Плеер не трогается, последний канал сохраняется.
+          Следующая команда воспроизведения сама переподключит бота.
         """
         if member.id != self.bot.user.id:
             return
 
-        # Если бот был в канале, а теперь его нет
-        if before.channel and not after.channel:
-            logger.info("Бот покинул голосовой канал на сервере %d. Очистка...", member.guild.id)
-            # Мы используем PlayerFactory напрямую, чтобы получить существующий плеер
-            player = PlayerFactory.get_player(member.guild.id, self.bot)
-            if player:
-                await player.stop()
+        # Интересует только переход «был в канале → вышел из канала»
+        if not (before.channel and not after.channel):
+            return
+
+        player = PlayerFactory.get_player(member.guild.id, self.bot)
+        if not player:
+            return
+
+        voice_handler = player.voice_handler
+
+        # Штатный выход (/stop, /disconnect) — останавливаем плеер
+        if voice_handler._intentional_disconnect:
+            voice_handler._intentional_disconnect = False
+            logger.info(
+                "Штатный выход из голосового канала на сервере %d. Остановка плеера.",
+                member.guild.id,
+            )
+            await player.stop()
+            return
+
+        # Принудительное выталкивание (server mute, kick из канала и т.д.) —
+        # просто логируем. Плеер не трогаем, _voice_channel сохранён в VoiceHandler.
+        # При следующей команде playmusic/link бот сам переподключится.
+        logger.warning(
+            "Бот принудительно выкинут из канала '%s' на сервере %d (server mute / kick). "
+            "Плеер сохранён, ждём следующую команду.",
+            before.channel.name,
+            member.guild.id,
+        )
