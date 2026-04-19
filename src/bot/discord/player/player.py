@@ -5,6 +5,7 @@ import logging
 import time
 from typing import TYPE_CHECKING, Final
 
+import discord
 from src.services import music_service
 from .enums import LoopMode
 from .queue_manager import QueueManager, TrackData
@@ -38,7 +39,12 @@ class MusicPlayer:
         
         self.is_playing: bool = False
         self.is_paused: bool = False
-        
+
+        self._volume: float = 1.0
+        self._is_muted: bool = False
+        self._pre_mute_volume: float = 1.0
+        self._current_source: discord.PCMVolumeTransformer | None = None
+
         self.start_time: float | None = None
         self.pause_time: float | None = None
         self.paused_duration: float = 0.0
@@ -95,7 +101,14 @@ class MusicPlayer:
     # ==================== Публичные методы управления ====================
 
     async def connect(self, channel: VoiceChannel) -> bool:
+        was_connected = self.is_connected
         success = await self.voice_handler.connect(channel)
+        
+        if success and not was_connected:
+            self._volume = 1.0
+            self._is_muted = False
+            logger.info("Громкость сброшена до 100%% при входе в канал на сервере %d", self.guild_id)
+
         if success and not self.is_playing:
             self._schedule_disconnect()
         return success
@@ -243,6 +256,58 @@ class MusicPlayer:
         logger.info("Режим зацикливания сервера %d: %s", self.guild_id, mode)
         return mode
 
+    def shuffle_queue(self) -> None:
+        """Перемешать очередь сохраняя текущий трек."""
+        self.queue_manager.shuffle()
+        logger.info("Очередь перемешана на сервере %d", self.guild_id)
+
+    def set_volume(self, volume: float) -> None:
+        """Установить громкость воспроизведения без перезапуска трека.
+
+        Args:
+            volume: Громкость от 0.0 до 1.0 (1.0 = 100%).
+        """
+        self._volume = max(0.0, min(volume, 1.0))
+        if self._current_source is not None:
+            self._current_source.volume = self._volume
+        logger.info("Громкость на сервере %d: %.0f%%", self.guild_id, self._volume * 100)
+
+    def toggle_mute(self) -> bool:
+        """Переключить заглушку.
+
+        Returns:
+            True — заглушено, False — звук включён.
+        """
+        if self._is_muted:
+            self._is_muted = False
+            self.set_volume(self._pre_mute_volume)
+        else:
+            self._pre_mute_volume = self._volume
+            self._is_muted = True
+            self.set_volume(0.0)
+        logger.info("Mute на сервере %d: %s", self.guild_id, self._is_muted)
+        return self._is_muted
+
+    @property
+    def volume(self) -> float:
+        """Текущая громкость (0.0–1.0)."""
+        return self._volume
+
+    @property
+    def is_muted(self) -> bool:
+        """Флаг заглушки."""
+        return self._is_muted
+
+    async def stop_playback_only(self) -> None:
+        """Остановить воспроизведение без отключения и без очистки очереди.
+
+        Бот остаётся в голосовом канале, очередь сохраняется.
+        """
+        self.voice_handler.stop_vc()
+        self._reset_playback_state()
+        self._current_source = None
+        logger.info("Стоп (без отключения) на сервере %d. Очередь сохранена.", self.guild_id)
+
     def set_text_channel(self, channel: TextChannel) -> None:
         """Установить канал для текстовых уведомлений.
 
@@ -303,10 +368,13 @@ class MusicPlayer:
             self.start_time = time.time()
             self.pause_time = None
             self.paused_duration = 0.0
-            
+
             self._cancel_tasks()
 
-            vc.play(audio_source, after=lambda e: self._after_playing_callback(e, vc))
+            volume_source = discord.PCMVolumeTransformer(audio_source, volume=self._volume)
+            self._current_source = volume_source
+
+            vc.play(volume_source, after=lambda e: self._after_playing_callback(e, vc))
             
             if self._preload_task:
                 self._preload_task.cancel()
@@ -386,7 +454,6 @@ class MusicPlayer:
 
         async def _delay() -> None:
             await asyncio.sleep(DEFAULT_DISCONNECT_DELAY)
-            # Отключаемся, если бот не играет ИЛИ если он на паузе (простой)
             if not self.is_playing or self.is_paused:
                 logger.info("Таймаут простоя (10 мин) на сервере %d. Отключение.", self.guild_id)
                 await self.disconnect()
@@ -399,7 +466,6 @@ class MusicPlayer:
 
         async def _delay() -> None:
             await asyncio.sleep(PLAYLIST_CLEAR_TIMEOUT)
-            # Очищаем очередь, если бот не играет ИЛИ если он на паузе слишком долго
             if not self.is_playing or self.is_paused:
                 logger.info("Таймаут хранения очереди (30 мин) на сервере %d. Очистка.", self.guild_id)
                 self.queue_manager.clear()
@@ -415,6 +481,9 @@ class MusicPlayer:
                 logger.warning("Не удалось обновить UI плеера на сервере %d: %s", self.guild_id, e)
 
     async def clear_player_ui(self) -> None:
+        if self.player_view and hasattr(self.player_view, 'stop_auto_update'):
+            self.player_view.stop_auto_update()
+            
         if self.player_message:
             try:
                 await self.player_message.delete()
