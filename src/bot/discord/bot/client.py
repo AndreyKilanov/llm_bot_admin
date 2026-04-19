@@ -11,6 +11,7 @@ from src.bot.discord.handlers import MessageHandler
 from src.bot.discord.player import PlayerFactory
 from .constants import OPUS_PATH, DEFAULT_PREFIX
 from .commands import CommandHandlers
+from src.bot.discord.views.emoji_manager import emoji_manager
 
 logger = logging.getLogger("discord.bot")
 
@@ -28,8 +29,8 @@ class DiscordBot:
         intents.voice_states = True
 
         self.bot = commands.Bot(
-            command_prefix=DEFAULT_PREFIX, 
-            intents=intents, 
+            command_prefix=DEFAULT_PREFIX,
+            intents=intents,
             help_command=None
         )
         self.bot.on_ready = self.on_ready
@@ -41,9 +42,41 @@ class DiscordBot:
         self.bg_task: Optional[asyncio.Task] = None
 
     def _register_commands(self) -> None:
-        """Регистрация всех доступных команд."""
-        
-        @self.bot.hybrid_command(name="playmusic", description="Искать и играть музыку (YouTube)")
+        """Регистрация всех доступных команд и глобальных обработчиков ошибок."""
+
+        @self.bot.event
+        async def on_command_error(ctx: commands.Context, error: Exception) -> None:
+            """Глобальный обработчик ошибок hybrid-команд (ext.commands)."""
+            cause = error
+            for _ in range(4):
+                if hasattr(cause, "original") and cause.original is not None:
+                    cause = cause.original
+                else:
+                    break
+            if isinstance(cause, discord.NotFound) and cause.code == 10062:
+                logger.warning(
+                    "on_command_error [%s]: interaction устарел (10062), пропускаем.",
+                    getattr(ctx.command, "name", "?"),
+                )
+                return
+            logger.error("Ошибка команды '%s': %s", ctx.command, error)
+
+        @self.bot.tree.error
+        async def on_tree_error(
+            interaction: discord.Interaction,
+            error: discord.app_commands.AppCommandError,
+        ) -> None:
+            """Глобальный обработчик ошибок слэш-команд (app_commands)."""
+            cause = error.original if hasattr(error, "original") else error
+            if isinstance(cause, discord.NotFound) and cause.code == 10062:
+                logger.debug(
+                    "on_tree_error [%s]: interaction устарел (10062), пропускаем.",
+                    getattr(interaction.command, "name", "?"),
+                )
+                return
+            logger.error("Ошибка слэш-команды '%s': %s", getattr(interaction.command, "name", "?"), error)
+
+        @self.bot.hybrid_command(name="play", description="Искать и играть музыку (YouTube)")
         async def play_music_cmd(ctx: commands.Context, *, query: str):
             await ctx.defer()
             await CommandHandlers.handle_playmusic(self.bot, ctx, query)
@@ -90,6 +123,54 @@ class DiscordBot:
         async def help_cmd(ctx: commands.Context):
             await CommandHandlers.handle_help(ctx)
 
+        @self.bot.tree.command(name="search", description="Живой поиск музыки в YouTube")
+        @discord.app_commands.describe(query="Введите название трека или выберите из списка")
+        async def search_slash(interaction: discord.Interaction, query: str) -> None:
+            """Слэш-команда поиска. Если выбран трек из списка — сразу добавляет и включает."""
+            try:
+                await interaction.response.defer()
+            except discord.NotFound:
+                return
+            await CommandHandlers.handle_search(self.bot, interaction, query)
+
+        @search_slash.autocomplete("query")
+        async def search_autocomplete(
+            interaction: discord.Interaction, current: str
+        ) -> list[discord.app_commands.Choice[str]]:
+            """Живой поиск треков для автодополнения с жестким таймаутом."""
+            try:
+                if not current.strip():
+                    return []
+
+                from src.services import music_service, SettingsService
+                import time
+                start_time = time.monotonic()
+
+                if not await SettingsService.is_discord_bot_enabled():
+                    return []
+                if not await SettingsService.is_discord_music_enabled():
+                    return []
+
+                tracks = await music_service.search_tracks_fast(current, max_results=10)
+                elapsed = time.monotonic() - start_time
+                logger.info(f"Сверхбыстрый YouTube поиск: '{current}' -> {len(tracks)} треков за {elapsed:.3f}с")
+
+                choices = []
+                # Всегда подсовываем то, что ввел пользователь, чтобы он точно мог запустить обычный поиск
+                choices.append(discord.app_commands.Choice(name=f"🔍 Искать: {current}"[:100], value=current[:100]))
+
+                for t in tracks[:9]:
+                    title = t["title"][:80]
+                    uploader = t.get("uploader", "YouTube")[:15]
+                    name = f"{title} | {uploader}"
+                    choices.append(discord.app_commands.Choice(name=name, value=t["url"]))
+
+                return choices
+            except Exception as e:
+                logger.error(f"Аварийная ошибка в автодополнении поиска для '{current}': {e}", exc_info=True)
+                # Фолбэк, чтобы интерфейс Discord не блокировался
+                return [discord.app_commands.Choice(name=current[:100], value=current[:100])] if current.strip() else []
+
     async def start(self) -> None:
         """Инициализация Opus и запуск основного цикла событий бота."""
         if not discord.opus.is_loaded():
@@ -131,6 +212,12 @@ class DiscordBot:
     async def on_ready(self) -> None:
         """Событие готовности бота."""
         logger.info("Discord Bot подключен как %s", self.bot.user)
+        
+        try:
+            await emoji_manager.initialize(self.bot)
+        except Exception as e:
+            logger.error("Ошибка при инициализации EmojiManager: %s", e)
+
         try:
             synced = await self.bot.tree.sync()
             logger.info("Slash-команды синхронизированы: %d", len(synced))
@@ -156,7 +243,6 @@ class DiscordBot:
         if member.id != self.bot.user.id:
             return
 
-        # Интересует только переход «был в канале → вышел из канала»
         if not (before.channel and not after.channel):
             return
 
@@ -166,22 +252,12 @@ class DiscordBot:
 
         voice_handler = player.voice_handler
 
-        # Штатный выход (/stop, /disconnect) — останавливаем плеер
-        if voice_handler._intentional_disconnect:
-            voice_handler._intentional_disconnect = False
-            logger.info(
-                "Штатный выход из голосового канала на сервере %d. Остановка плеера.",
-                member.guild.id,
-            )
-            await player.stop()
+        if getattr(voice_handler, '_intentional_disconnect', False) or getattr(voice_handler, '_is_connecting', False):
             return
 
-        # Принудительное выталкивание (server mute, kick из канала и т.д.) —
-        # просто логируем. Плеер не трогаем, _voice_channel сохранён в VoiceHandler.
-        # При следующей команде playmusic/link бот сам переподключится.
         logger.warning(
-            "Бот принудительно выкинут из канала '%s' на сервере %d (server mute / kick). "
-            "Плеер сохранён, ждём следующую команду.",
+            "Бот покинул канал '%s' на сервере %d. Очистка плеера.",
             before.channel.name,
             member.guild.id,
         )
+        await player.disconnect()
