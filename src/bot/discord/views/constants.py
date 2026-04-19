@@ -6,24 +6,24 @@ DEFAULT_EMBED_COLOR: Final[int] = 0x9B59B6
 SUCCESS_COLOR: Final[discord.Color] = discord.Color.green()
 ERROR_COLOR: Final[discord.Color] = discord.Color.red()
 SEARCH_COLOR: Final[discord.Color] = discord.Color.blue()
-PROGRESS_BAR_LENGTH: Final[int] = 15
+PROGRESS_BAR_LENGTH: Final[int] = 20
 DEFAULT_VIEW_TIMEOUT: Final[float] = 60.0
 # Ширина окна (количество невидимых символов в футере)
-UI_WIDTH: Final[int] = 35
+UI_WIDTH: Final[int] = 30
 INVISIBLE_SPACER: Final[str] = "⠀" * UI_WIDTH
 
 
-# Эмодзи
+# Эмодзи — существующие
 EMOJI_PREVIOUS: Final[str] = "⏮️"
 EMOJI_PLAY: Final[str] = "▶️"
 EMOJI_PAUSE: Final[str] = "⏸️"
 EMOJI_NEXT: Final[str] = "⏭️"
 EMOJI_STOP: Final[str] = "⏹️"
-EMOJI_REWIND: Final[str] = "⏪"
+EMOJI_REWIND: Final[str] = "⏮"
 EMOJI_FORWARD: Final[str] = "⏩"
-EMOJI_QUEUE: Final[str] = "📋"
+EMOJI_QUEUE: Final[str] = "≡"
 EMOJI_SEARCH: Final[str] = "🎵"
-EMOJI_LOOP_NONE: Final[str] = "🚫"
+EMOJI_LOOP_NONE: Final[str] = "↔️"
 EMOJI_LOOP_TRACK: Final[str] = "🔂"
 EMOJI_LOOP_PLAYLIST: Final[str] = "🔁"
 EMOJI_SUCCESS: Final[str] = "✅"
@@ -32,8 +32,19 @@ EMOJI_TIMEOUT: Final[str] = "⏱️"
 EMOJI_PREV_PAGE: Final[str] = "◀"
 EMOJI_NEXT_PAGE: Final[str] = "▶"
 
+# Эмодзи — новые кнопки (Unicode fallback; кастомные грузятся через EmojiManager)
+EMOJI_SHUFFLE: Final[str] = "🔀"
+EMOJI_MUTE: Final[str] = "🔇"
+EMOJI_UNMUTE: Final[str] = "🔊"
+EMOJI_VOL_UP: Final[str] = "🔊"
+EMOJI_LYRICS: Final[str] = "🅐"
+EMOJI_STOP_ONLY: Final[str] = "⏹"
+EMOJI_DISCONNECT: Final[str] = "❌"
+EMOJI_ADD: Final[str] = "➕"
+
 # Лимиты
 MAX_SEARCH_RESULTS: Final[int] = 50
+NOTIFICATION_TIMEOUT: Final[float] = 10.0  # Время отображения уведомлений (сек)
 
 # Настройки пагинации
 DEFAULT_ITEMS_PER_PAGE: Final[int] = 10
@@ -89,3 +100,25 @@ MSG_LOOP_UNKNOWN: Final[str] = "неизвестно"
 
 MSG_QUEUE_EXTENDED: Final[str] = "... и еще {count} треков"
 MSG_PLAYER_FOOTER: Final[str] = "♫ Трек {current} из {total}"
+
+# Источники треков (для footer embed)
+SOURCE_LABELS: Final[dict[str, str]] = {
+    "youtube": "YouTube",
+    "vk": "ВКонтакте",
+    "unknown": "Источник",
+}
+SOURCE_ICON_URLS: Final[dict[str, str]] = {
+    "youtube": "https://www.youtube.com/favicon.ico",
+    "vk": "https://vk.com/images/icons/favicons/fav_logo.ico",
+    "unknown": "",
+}
+
+MSG_SHUFFLE_ON: Final[str] = f"{EMOJI_SHUFFLE} Очередь перемешана!"
+MSG_MUTED: Final[str] = f"{EMOJI_MUTE} Заглушено."
+MSG_UNMUTED: Final[str] = f"{EMOJI_UNMUTE} Звук включён."
+MSG_VOLUME_SET: Final[str] = f"{EMOJI_VOL_UP} Громкость: {{volume}}%"
+MSG_NO_LYRICS: Final[str] = "❌ Текст песни не найден для этого трека."
+MSG_PLAYBACK_STOPPED: Final[str] = "⏹️ Воспроизведение остановлено. Бот остался в канале."
+MSG_ADDED_TO_QUEUE: Final[str] = f"{EMOJI_SUCCESS} Добавлено в очередь: **{{title}}**"
+MSG_SEARCH_MODAL_TITLE: Final[str] = "Поиск трека"
+MSG_SEARCH_MODAL_LABEL: Final[str] = "Название или URL видео"
