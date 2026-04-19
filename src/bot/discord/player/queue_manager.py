@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import random
 from typing import TYPE_CHECKING, TypeAlias
 
 from .enums import LoopMode
@@ -118,5 +119,31 @@ class QueueManager:
                 self._loop_mode = LoopMode.PLAYLIST
             case LoopMode.PLAYLIST:
                 self._loop_mode = LoopMode.NONE
-        
+
         return self._loop_mode
+
+    def shuffle(self) -> None:
+        """Перемешать очередь случайным образом.
+
+        Текущий воспроизводимый трек остаётся на своей позиции (current_index).
+        Все остальные треки перемешиваются случайно.
+        """
+        if len(self._queue) <= 1:
+            logger.debug("Перемешивание не выполнено: очередь содержит менее 2 треков")
+            return
+
+        current = (
+            self._queue[self._current_index]
+            if 0 <= self._current_index < len(self._queue)
+            else None
+        )
+
+        if current is not None:
+            remaining = [t for i, t in enumerate(self._queue) if i != self._current_index]
+            random.shuffle(remaining)
+            self._queue = [current] + remaining
+            self._current_index = 0
+        else:
+            random.shuffle(self._queue)
+
+        logger.info("Очередь перемешана (%d треков)", len(self._queue))
