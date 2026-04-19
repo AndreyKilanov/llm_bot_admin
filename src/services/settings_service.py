@@ -52,7 +52,7 @@ class SettingsService:
         setting = await Setting.get_or_none(key="discord_bot_enabled")
         if setting:
             return str(setting.value).lower() == "true"
-        return False  # По умолчанию выключен
+        return True  # По умолчанию включен
 
     @staticmethod
     @log_function
