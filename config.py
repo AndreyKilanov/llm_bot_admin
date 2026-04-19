@@ -9,6 +9,7 @@ class Settings(BaseSettings):
     )
 
     # Telegram
+    ENABLE_TELEGRAM: bool = True
     BOT_TOKEN: str = "BOT_TOKEN"
     TELEGRAM_PROXY_URL: str | None = None
 
@@ -24,7 +25,7 @@ class Settings(BaseSettings):
     SYSTEM_PROMPT: str = "You are a helpful assistant. Answer concisely and clearly."
 
     # History
-    HISTORY_SIZE: int = 10  # Fallback logic if needed, but we will move to dynamic settings
+    HISTORY_SIZE: int = 10
 
 
     # Webhook
