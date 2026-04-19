@@ -2,6 +2,7 @@ import asyncio
 import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
+from typing import Optional, Any
 
 from aiogram import Bot
 from aiogram.types import Update
@@ -17,7 +18,7 @@ from src.database.config import get_tortoise_config
 from src.web.admin import router as admin_router
 
 
-def create_app(bot: Bot, dp, use_webhook: bool = False) -> FastAPI:
+def create_app(bot: Optional[Bot] = None, dp: Any = None, use_webhook: bool = False) -> FastAPI:
     settings = Settings()
 
     @asynccontextmanager
