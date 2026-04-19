@@ -28,9 +28,8 @@ class VoiceHandler:
         self.bot = bot
         self.manual_skip: bool = False
         self._voice_channel: VoiceChannel | None = None
-        # Флаг штатного отключения: True — бот сам вышел по команде,
-        # False — выкинут сервером (mute, kick из канала и т.д.)
         self._intentional_disconnect: bool = False
+        self._is_connecting: bool = False
 
     @property
     def voice_client(self) -> VoiceClient | None:
@@ -97,6 +96,7 @@ class VoiceHandler:
                 except:
                     pass
 
+        self._is_connecting = True
         try:
             logger.info("Подключение к голосовому каналу '%s' сервера %d...", channel.name, self.guild_id)
             await channel.connect(timeout=CONNECT_TIMEOUT, reconnect=True)
@@ -110,6 +110,8 @@ class VoiceHandler:
                 except:
                     pass
             return False
+        finally:
+            self._is_connecting = False
 
     async def disconnect(self) -> None:
         """Отключиться от голосового канала (штатное отключение)."""
