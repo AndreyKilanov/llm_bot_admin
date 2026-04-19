@@ -1,5 +1,5 @@
 import asyncio
-from typing import TYPE_CHECKING, Final
+from typing import TYPE_CHECKING, Final, Union
 
 import discord
 from discord.ext import commands
@@ -50,7 +50,7 @@ class TrackSelectionView(BaseMusicView):
         self,
         tracks: list[TrackInfo],
         player: "MusicPlayer",
-        ctx: commands.Context,
+        ctx: Union[commands.Context, discord.Interaction],
         items_per_page: int = DEFAULT_ITEMS_PER_PAGE,
     ) -> None:
         """Инициализация View выбора трека.
@@ -58,14 +58,14 @@ class TrackSelectionView(BaseMusicView):
         Args:
             tracks: Список найденных треков.
             player: Экземпляр MusicPlayer.
-            ctx: Контекст команды.
+            ctx: Контекст команды или Interaction.
             items_per_page: Количество треков на страницу. По умолчанию 5.
         """
         super().__init__(timeout=DEFAULT_VIEW_TIMEOUT)
         self.tracks: list[TrackInfo] = tracks
         self.player: "MusicPlayer" = player
-        self.ctx: commands.Context = ctx
-        self.message: discord.Message | None = None
+        self.ctx: Union[commands.Context, discord.Interaction] = ctx
+        self.message: discord.Message | discord.InteractionMessage | None = None
         self.current_page: int = 0
         self.items_per_page: int = items_per_page
 
