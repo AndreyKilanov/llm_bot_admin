@@ -19,7 +19,10 @@ from .constants import (
     MSG_SEARCH_FAIL, MSG_CONN_FAIL, MSG_LOAD_FAIL, MSG_INVALID_URL,
     MSG_NOTHING_PLAYING, MSG_PLAYER_MISSING, MSG_QUEUE_EMPTY
 )
-from src.bot.discord.views.constants import MAX_SEARCH_RESULTS
+from src.bot.discord.views.constants import MAX_SEARCH_RESULTS, NOTIFICATION_TIMEOUT
+from src.logger import get_logger
+
+logger = get_logger(__name__)
 
 class CommandHandlers:
     """Класс, содержащий логику обработки команд Discord бота.
@@ -75,21 +78,27 @@ class CommandHandlers:
             Голосовой канал автора, если все проверки пройдены, иначе None.
         """
         if not await SettingsService.is_discord_bot_enabled():
-            await ctx.send(MSG_BOT_DISABLED, delete_after=10.0)
+            await ctx.send(MSG_BOT_DISABLED, delete_after=NOTIFICATION_TIMEOUT)
             return None
 
         if not await SettingsService.is_discord_music_enabled():
-            await ctx.send(MSG_MUSIC_DISABLED, delete_after=10.0)
+            await ctx.send(MSG_MUSIC_DISABLED, delete_after=NOTIFICATION_TIMEOUT)
             return None
 
         if not ctx.author.voice:
-            await ctx.send(MSG_VOICE_REQUIRED, delete_after=10.0)
+            await ctx.send(MSG_VOICE_REQUIRED, delete_after=NOTIFICATION_TIMEOUT)
             return None
 
         return ctx.author.voice.channel
 
     @classmethod
-    async def start_playback_sequence(cls, bot: commands.Bot, ctx: commands.Context, tracks: list, channel: discord.VoiceChannel) -> None:
+    async def start_playback_sequence(
+        cls, 
+        bot: commands.Bot, 
+        ctx: Union[commands.Context, discord.Interaction], 
+        tracks: list, 
+        channel: discord.VoiceChannel
+    ) -> None:
         """Инициализирует последовательность воспроизведения треков.
 
         Подключается к каналу, добавляет треки в очередь и запускает проигрывание,
@@ -97,50 +106,155 @@ class CommandHandlers:
 
         Args:
             bot: Экземпляр бота Discord.
-            ctx: Контекст команды Discord.
+            ctx: Контекст команды или Interaction.
             tracks: Список метаданных треков для добавления.
             channel: Голосовой канал для подключения.
         """
-        player = cls.get_player(bot, ctx.guild.id)
-        player.set_text_channel(ctx.channel)
+        guild_id = ctx.guild.id if isinstance(ctx, commands.Context) else ctx.guild_id
+        text_channel = ctx.channel
+        user = ctx.author if isinstance(ctx, commands.Context) else ctx.user
+        author_name = user.display_name
+
+        player = cls.get_player(bot, guild_id)
+        player.set_text_channel(text_channel)
 
         if not await player.connect(channel):
-            await ctx.send(MSG_CONN_FAIL, delete_after=10.0)
+            if isinstance(ctx, commands.Context):
+                await ctx.send(MSG_CONN_FAIL, delete_after=NOTIFICATION_TIMEOUT)
+            else:
+                await ctx.response.send_message(MSG_CONN_FAIL, ephemeral=True)
             return
+
+        for track in tracks:
+            track.setdefault("added_by", author_name)
+            track.setdefault("source", cls._detect_source(str(track.get("url", ""))))
 
         player.add_to_queue(tracks)
 
         if not player.is_playing:
             await player.play_from_start()
 
-        if not player.player_message:
-            await cls.send_player_ui(ctx, player)
-        else:
-            await player._update_player_ui()
+        await cls.send_player_ui(ctx, player)
 
     @staticmethod
-    async def send_player_ui(ctx: commands.Context, player: MusicPlayer) -> None:
-        """Отправляет сообщение с интерфейсом управления плеером.
-
-        Создает эмбед и кнопки управления, а также запускает автоматическое
-        обновление статуса плеера.
+    def _detect_source(url: str) -> str:
+        """Определить источник трека по URL.
 
         Args:
-            ctx: Контекст команды Discord.
+            url: URL трека.
+
+        Returns:
+            Строка-идентификатор: 'youtube', 'vk' или 'unknown'.
+        """
+        if "youtube.com" in url or "youtu.be" in url:
+            return "youtube"
+        if "vk.com" in url or "vk.ru" in url:
+            return "vk"
+        return "unknown"
+
+
+    @staticmethod
+    async def send_player_ui(ctx: Union[commands.Context, discord.Interaction], player: MusicPlayer) -> None:
+        """Отправляет сообщение с интерфейсом управления плеером.
+
+        Args:
+            ctx: Контекст команды или Interaction.
             player: Экземпляр музыкального плеера.
         """
         if not player.current_track:
             return
 
+        if player.player_message:
+            await player.clear_player_ui()
+
         view = MusicPlayerView(player, ctx)
         embed = view.create_player_embed()
-        message = await ctx.send(embed=embed, view=view)
+        
+        if isinstance(ctx, commands.Context):
+            message = await ctx.send(embed=embed, view=view)
+        else:
+            if ctx.response.is_done():
+                message = await ctx.followup.send(embed=embed, view=view)
+            else:
+                await ctx.response.send_message(embed=embed, view=view)
+                message = await ctx.original_response()
         
         player.player_view = view
         player.player_message = message
         view.message = message
         
         await view.start_auto_update()
+
+    @classmethod
+    async def handle_search(cls, bot: commands.Bot, interaction: discord.Interaction, query: str) -> None:
+        """Обрабатывает поиск после того как defer() уже отправлен.
+
+        Этот метод вызывается только из search_slash, где defer() уже выполнен.
+        Использует исключительно interaction.followup для всех ответов.
+
+        Args:
+            bot: Экземпляр бота.
+            interaction: Объект взаимодействия (defer уже отправлен).
+            query: Поисковый запрос или URL.
+        """
+        if not await SettingsService.is_discord_bot_enabled():
+            await interaction.followup.send(MSG_BOT_DISABLED, ephemeral=True)
+            return
+
+        if not await SettingsService.is_discord_music_enabled():
+            await interaction.followup.send(MSG_MUSIC_DISABLED, ephemeral=True)
+            return
+
+        if not interaction.user.voice:
+            try:
+                await interaction.followup.send(MSG_VOICE_REQUIRED, ephemeral=True)
+            except discord.HTTPException:
+                pass
+            return
+
+        v_channel = interaction.user.voice.channel
+
+        try:
+            if music_service.is_valid_url(query):
+                try:
+                    info = await asyncio.wait_for(music_service.get_track_info(query), timeout=30.0)
+                except asyncio.TimeoutError:
+                    await interaction.followup.send("⚠️ Время ожидания поиска истекло. Пожалуйста, повторите попытку позже.", ephemeral=True)
+                    return
+                
+                if not info:
+                    await interaction.followup.send(MSG_LOAD_FAIL, ephemeral=True)
+                    return
+
+                await interaction.followup.send(f"{ICON_OK} Добавлено: **{info['title']}**", ephemeral=True)
+                await cls.start_playback_sequence(bot, interaction, [info], v_channel)
+                return
+
+            try:
+                tracks = await asyncio.wait_for(music_service.search_tracks(query, max_results=MAX_SEARCH_RESULTS), timeout=30.0)
+            except asyncio.TimeoutError:
+                await interaction.followup.send("⚠️ Время ожидания поиска истекло. Пожалуйста, повторите попытку позже.", ephemeral=True)
+                return
+
+            if not tracks:
+                await interaction.followup.send(MSG_SEARCH_FAIL, ephemeral=True)
+                return
+
+            if len(tracks) == 1:
+                await interaction.followup.send(f"{ICON_OK} Добавлено: **{tracks[0]['title']}**", ephemeral=True)
+                await cls.start_playback_sequence(bot, interaction, tracks, v_channel)
+            else:
+                player = cls.get_player(bot, interaction.guild_id)
+                view = TrackSelectionView(tracks, player, interaction)
+                embed = view.create_embed()
+                msg = await interaction.followup.send(embed=embed, view=view)
+                view.message = msg
+
+        except (discord.NotFound, discord.HTTPException) as exc:
+            if isinstance(exc, discord.NotFound) and exc.code in (10062, 10015):
+                logger.debug("handle_search: токен взаимодействия истёк или не найден: %s", exc)
+            else:
+                logger.error("handle_search: ошибка при отправке followup: %s", exc)
 
     @classmethod
     async def handle_playmusic(cls, bot: commands.Bot, ctx: commands.Context, query: str) -> None:
@@ -163,13 +277,12 @@ class CommandHandlers:
 
         if not tracks:
             await status_msg.edit(content=MSG_SEARCH_FAIL)
-            await cls._delete_with_delay(status_msg, 10.0)
+            await cls._delete_with_delay(status_msg, NOTIFICATION_TIMEOUT)
             return
 
         if len(tracks) == 1:
             track = tracks[0]
             await status_msg.edit(content=f"{ICON_OK} Трек найден и добавлен: **{track['title']}**")
-            await cls._delete_with_delay(status_msg, 10.0)
             await cls.start_playback_sequence(bot, ctx, tracks, v_channel)
             return
 
@@ -195,7 +308,7 @@ class CommandHandlers:
             return
             
         if not music_service.is_valid_url(url):
-            await ctx.send(MSG_INVALID_URL, delete_after=10.0)
+            await ctx.send(MSG_INVALID_URL, delete_after=NOTIFICATION_TIMEOUT)
             return
 
         status_msg = await ctx.send(f"{ICON_SEARCH} Загрузка: <{url}>...")
@@ -206,7 +319,6 @@ class CommandHandlers:
             return
 
         await status_msg.edit(content=f"{ICON_OK} Трек добавлен: **{info['title']}**")
-        await cls._delete_with_delay(status_msg, 10.0)
         await cls.start_playback_sequence(bot, ctx, [info], v_channel)
 
     @classmethod
@@ -225,7 +337,7 @@ class CommandHandlers:
             return
             
         if not music_service.is_valid_url(url):
-            await ctx.send(MSG_INVALID_URL, delete_after=10.0)
+            await ctx.send(MSG_INVALID_URL, delete_after=NOTIFICATION_TIMEOUT)
             return
 
         status_msg = await ctx.send(f"{ICON_SEARCH} Загрузка плейлиста: <{url}>...")
@@ -236,7 +348,6 @@ class CommandHandlers:
             return
 
         await status_msg.edit(content=f"{ICON_OK} Найдено {len(tracks)} треков. Добавляю в очередь...")
-        await cls._delete_with_delay(status_msg, 10.0)
         await cls.start_playback_sequence(bot, ctx, tracks, v_channel)
 
     @classmethod
@@ -327,7 +438,7 @@ class CommandHandlers:
         await player.stop()
         await player.disconnect()
         PlayerFactory.remove_player(ctx.guild.id)
-        await ctx.send(f"{ICON_STOP} Плеер остановлен.", delete_after=10.0)
+        await ctx.send(f"{ICON_STOP} Плеер остановлен.", delete_after=NOTIFICATION_TIMEOUT)
 
     @classmethod
     async def handle_queue(cls, bot: commands.Bot, ctx: commands.Context) -> None:
@@ -363,17 +474,8 @@ class CommandHandlers:
         if not player or not player.current_track:
             await ctx.send(MSG_NOTHING_PLAYING)
             return
-        track = player.current_track
-        dur = music_service.format_duration(track.get("duration") or 0)
-        embed = discord.Embed(title=f"{ICON_MUSIC} Сейчас играет", description=f"**{track['title']}**", color=discord.Color.purple())
-        embed.add_field(name="Автор", value=track['uploader'], inline=True)
-        embed.add_field(name="Длительность", value=dur, inline=True)
-        if track.get('thumbnail'): embed.set_thumbnail(url=track['thumbnail'])
-        status = "Пауза" if player.is_paused else "Играет"
-        status_icon = ICON_PAUSE if player.is_paused else ICON_RESUME
-        embed.add_field(name="Статус", value=f"{status_icon} {status}", inline=False)
-        embed.set_footer(text=f"Трек {player.current_index + 1} из {len(player.queue)}")
-        await ctx.send(embed=embed)
+            
+        await cls.send_player_ui(ctx, player)
 
     @staticmethod
     async def handle_help(ctx: commands.Context) -> None:
@@ -382,21 +484,40 @@ class CommandHandlers:
         Args:
             ctx: Контекст команды Discord.
         """
+        from src.bot.discord.views.emoji_manager import emoji_manager
+        e_prev = emoji_manager.get("previous")
+        e_play = emoji_manager.get("play")
+        e_pause = emoji_manager.get("pause")
+        e_next = emoji_manager.get("next")
+        e_stop = emoji_manager.get("stop_only")
+        e_queue = emoji_manager.get("queue")
+        e_shuffle = emoji_manager.get("shuffle")
+        e_loop = emoji_manager.get("repeat_all")
+
         embed = discord.Embed(
             title=f"{ICON_ROBOT} LLM Bot — Справка",
             description=(
-                f"Я — мультифункциональный бот с AI и музыкой! {ICON_SPARKLE}\n\n"
-                "**🧠 Чат с ИИ**\n• Отвечаю в ЛС или по упоминанию `@Бот`.\n\n"
-                "**🎵 Плеер**\n"
-                "• `/playmusic` — поиск (до 100 результатов, пагинация)\n"
-                "• `/link` — играть по ссылке YouTube\n"
-                "• `/playlist` — загрузить плейлист целиком\n"
-                "• `/queue` — список треков (с пагинацией)\n"
-                "• `/stop` — остановка и выход\n\n"
-                "**⚙️ Управление**\n• `/pause` / `/resume`\n• `/skip` / `/previous`"
+                f"Я — мультифункциональный бот с ИИ и музыкой! {ICON_SPARKLE}\n\n"
+                "**🧠 Чат с ИИ**\n"
+                "• Отвечаю в ЛС или по упоминанию `@Бот`.\n"
+                "• Использую современные LLM для диалога.\n\n"
+                "**🎵 Музыкальные команды**\n"
+                f"• `/play` — Поиск и выбор трека из списка\n"
+                f"• `/search` — Быстрый запуск (живой поиск)\n"
+                f"• `/link` — Играть по прямой ссылке\n"
+                f"• `/playlist` — Загрузить весь плейлист\n"
+                f"• `/nowplaying` — Открыть пульт управления\n"
+                f"• `/queue` — Очередь треков\n\n"
+                "**🎮 Пульт управления**\n"
+                f"{e_prev} — Назад | {e_play}{e_pause} — Пауза/Плей | {e_next} — Вперед\n"
+                f"{e_stop} — Стоп | {e_queue} — Очередь | {e_shuffle} — Шаттл | {e_loop} — Цикл\n\n"
+                "**⚙️ Быстрое управление**\n"
+                f"• `/skip` / `/previous` — Навигация\n"
+                f"• `/pause` / `/resume` — Состояние\n"
+                f"• `/stop` — Остановка и выход"
             ),
             color=discord.Color.from_rgb(88, 101, 242)
         )
-        repo_url = "https://github.com/AndreyKilanov/llm_bot_admin/tree/dev"
+        repo_url = "https://github.com/AndreyKilanov/llm_bot_admin/tree/main"
         embed.description += f"\n\n-# [{ICON_INFO} GitHub Repository]({repo_url})"
         await ctx.send(embed=embed)
