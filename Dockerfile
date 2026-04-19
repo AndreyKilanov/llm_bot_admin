@@ -1,4 +1,4 @@
-FROM python:3.11
+FROM python:3.11-slim
 
 WORKDIR /app
 
@@ -14,12 +14,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN uv sync --frozen --no-dev
 
 COPY config.py .
-COPY pyproject.toml .
 COPY src/ ./src/
 COPY scripts/ ./scripts/
-
-ENV PYTHONUNBUFFERED=1
-
 COPY start.sh .
 RUN chmod +x start.sh
 CMD ["bash", "start.sh"]
