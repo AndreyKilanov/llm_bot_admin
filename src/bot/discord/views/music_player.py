@@ -1,54 +1,36 @@
 import asyncio
 import logging
-from typing import TYPE_CHECKING, Union
+from typing import TYPE_CHECKING, Optional, Union
 
 import discord
 from discord.ext import commands
 
-from src.services import music_service, SettingsService
+from src.services import music_service, lyrics_service
 from src.bot.discord.player import LoopMode
 from .base import BaseMusicView
+from .emoji_manager import emoji_manager
 from .constants import (
     DEFAULT_EMBED_COLOR,
     PROGRESS_BAR_LENGTH,
-    EMOJI_PREVIOUS,
-    EMOJI_PLAY,
-    EMOJI_PAUSE,
-    EMOJI_NEXT,
-    EMOJI_STOP,
-    EMOJI_REWIND,
-    EMOJI_FORWARD,
-    EMOJI_QUEUE,
-    EMOJI_LOOP_NONE,
-    EMOJI_LOOP_TRACK,
-    EMOJI_LOOP_PLAYLIST,
+    INVISIBLE_SPACER,
     EMOJI_ERROR,
     MSG_ERR_FIRST_TRACK,
     MSG_ERR_LAST_TRACK,
-    MSG_ERR_PLAY_FAIL,
-    MSG_ERR_RESUME_FAIL,
-    MSG_ERR_PAUSE_FAIL,
-    MSG_STOPPED,
     MSG_ERR_NO_ACTIVE_TRACK,
-    MSG_ERR_SEEK_FAIL,
     MSG_ERR_QUEUE_EMPTY,
-    MSG_LOOP_CHANGED,
+    MSG_LOOP_MODE,
+    MSG_PLAYER_FOOTER,
+    MSG_PROGRESS,
     MSG_LOOP_OFF,
     MSG_LOOP_TRACK,
     MSG_LOOP_PLAYLIST,
-    MSG_LOOP_UNKNOWN,
-    MSG_PLAYER_TITLE,
-    MSG_PLAYER_EMPTY,
+    MSG_NO_LYRICS,
+    MSG_PLAYBACK_STOPPED,
+    NOTIFICATION_TIMEOUT,
     MSG_NOW_PLAYING,
-    MSG_DURATION,
-    MSG_STATUS,
-    MSG_PROGRESS,
-    MSG_LOOP_MODE,
-    MSG_STATUS_PAUSED,
-    MSG_STATUS_PLAYING,
-    MSG_STATUS_FINISHED,
-    MSG_PLAYER_FOOTER,
-    INVISIBLE_SPACER,
+    EMOJI_LOOP_NONE,
+    EMOJI_LOOP_TRACK,
+    EMOJI_LOOP_PLAYLIST,
 )
 
 if TYPE_CHECKING:
@@ -58,20 +40,15 @@ logger = logging.getLogger("discord.views.music_player")
 
 
 class MusicPlayerView(BaseMusicView):
-    """View для управления музыкальным плеером (кнопки паузы, пропуска и т.д.)."""
+    """View для управления музыкальным плеером (3 ряда кнопок)."""
 
-    def __init__(self, player: "MusicPlayer", ctx: commands.Context):
-        """Инициализация View плеера.
-
-        Args:
-            player: Экземпляр MusicPlayer.
-            ctx: Контекст команды.
-        """
+    def __init__(self, player: "MusicPlayer", ctx: Union[commands.Context, discord.Interaction]):
         super().__init__(timeout=None)
         self.player = player
         self.ctx = ctx
-        self.message: discord.Message | None = None
+        self.message: discord.Message | discord.InteractionMessage | None = None
         self._update_task: asyncio.Task | None = None
+        self._update_buttons_ui()
 
     async def start_auto_update(self):
         """Запуск цикла автоматического обновления сообщения плеера."""
@@ -79,16 +56,11 @@ class MusicPlayerView(BaseMusicView):
             return
 
         async def update_loop():
-            last_state = None
             try:
                 while True:
                     await asyncio.sleep(1.0)
-                    is_playing = self.player.is_playing
-                    is_paused = self.player.is_paused
-                    current_state = (is_playing, is_paused)
-                    if (is_playing and not is_paused) or (current_state != last_state):
+                    if self.player.is_playing and not self.player.is_paused:
                         await self.update_player_message()
-                        last_state = current_state
             except asyncio.CancelledError:
                 pass
             except Exception as e:
@@ -96,148 +68,151 @@ class MusicPlayerView(BaseMusicView):
 
         self._update_task = asyncio.create_task(update_loop())
 
-    @discord.ui.button(emoji=EMOJI_PREVIOUS, style=discord.ButtonStyle.secondary, custom_id="previous")
+    def stop_auto_update(self):
+        """Остановка цикла автоматического обновления."""
+        if self._update_task and not self._update_task.done():
+            self._update_task.cancel()
+            self._update_task = None
+            logger.debug(f"Цикл обновления плеера остановлен на сервере {self.player.guild_id}")
+
+    @discord.ui.button(custom_id="previous", row=0)
     async def previous_button(self, interaction: discord.Interaction, button: discord.ui.Button):
-        """Кнопка воспроизведения предыдущего трека."""
         await interaction.response.defer()
-        if await self.player.play_previous():
-            await self.update_player_message()
-        else:
+        if not await self.player.play_previous():
             await interaction.followup.send(MSG_ERR_FIRST_TRACK, ephemeral=True)
+        await self.update_player_message()
 
-    @discord.ui.button(emoji=EMOJI_PAUSE, style=discord.ButtonStyle.primary, custom_id="pause_resume")
+    @discord.ui.button(custom_id="rewind", row=0)
+    async def rewind_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await self._handle_seek(interaction, -10)
+
+    @discord.ui.button(custom_id="pause_resume", row=0)
     async def pause_resume_button(self, interaction: discord.Interaction, button: discord.ui.Button):
-        """Кнопка переключения состояния пауза/воспроизведение."""
         await interaction.response.defer()
-
-        if not self.player.is_playing and not self.player.is_paused and self.player.queue:
-            if await self.player.play_from_start():
-                await self.update_player_message()
-            else:
-                await interaction.followup.send(MSG_ERR_PLAY_FAIL, ephemeral=True)
-            return
-
         success = False
-        if self.player.is_paused:
+        if not self.player.is_playing and not self.player.is_paused and self.player.queue:
+            success = await self.player.play_from_start()
+        elif self.player.is_paused:
             success = self.player.resume()
-            error_msg = MSG_ERR_RESUME_FAIL
         else:
             success = self.player.pause()
-            error_msg = MSG_ERR_PAUSE_FAIL
 
         if success:
             await self.update_player_message()
         else:
-            await interaction.followup.send(f"{EMOJI_ERROR} {error_msg}", ephemeral=True)
+            await interaction.followup.send(f"{EMOJI_ERROR} Ошибка изменения состояния", ephemeral=True)
 
-    @discord.ui.button(emoji=EMOJI_NEXT, style=discord.ButtonStyle.secondary, custom_id="next")
+    @discord.ui.button(custom_id="forward", row=0)
+    async def forward_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await self._handle_seek(interaction, 10)
+
+    @discord.ui.button(custom_id="next", row=0)
     async def next_button(self, interaction: discord.Interaction, button: discord.ui.Button):
-        """Кнопка воспроизведения следующего трека."""
         await interaction.response.defer()
-        if await self.player.play_next():
-            await self.update_player_message()
-        else:
+        if not await self.player.play_next():
             await interaction.followup.send(MSG_ERR_LAST_TRACK, ephemeral=True)
+        await self.update_player_message()
 
-    @discord.ui.button(emoji=EMOJI_STOP, style=discord.ButtonStyle.danger, custom_id="stop")
-    async def stop_button(self, interaction: discord.Interaction, button: discord.ui.Button):
-        """Кнопка полной остановки и отключения бота."""
+    @discord.ui.button(custom_id="shuffle", row=1)
+    async def shuffle_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        self.player.shuffle_queue()
         await interaction.response.defer()
-        await self.player.stop()
+        await self.update_player_message()
+
+    @discord.ui.button(custom_id="loop_mode", row=1)
+    async def loop_mode_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        self.player.cycle_loop_mode()
+        await interaction.response.defer()
+        await self.update_player_message()
+
+    @discord.ui.button(custom_id="queue", row=1)
+    async def queue_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        from .queue_pagination import QueuePaginationView
+        if not self.player.queue:
+            return await interaction.response.send_message(MSG_ERR_QUEUE_EMPTY, ephemeral=True)
+        view = QueuePaginationView(self.player, self.ctx, items_per_page=10)
+        await interaction.response.send_message(embed=view.create_embed(), view=view, ephemeral=True)
+
+    @discord.ui.button(custom_id="lyrics", row=1)
+    async def lyrics_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await interaction.response.defer(ephemeral=True)
+        track = self.player.current_track
+        if not track:
+            return await interaction.followup.send(MSG_ERR_NO_ACTIVE_TRACK, ephemeral=True)
+
+        content = await lyrics_service.get_lyrics(track['title'], track.get('uploader', ''))
+        if not content:
+            return await interaction.followup.send(MSG_NO_LYRICS, ephemeral=True)
+
+        embed = discord.Embed(
+            title=f"Текст песни: {track['title']}",
+            description=content,
+            color=DEFAULT_EMBED_COLOR
+        )
+        await interaction.followup.send(embed=embed, ephemeral=True)
+
+    @discord.ui.button(custom_id="stop_only", row=1)
+    async def stop_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        """Остановка без выхода из канала."""
+        await interaction.response.defer()
+        await self.player.stop_playback_only()
+        msg = await interaction.followup.send(MSG_PLAYBACK_STOPPED)
+        await self._delete_with_delay(msg, NOTIFICATION_TIMEOUT)
+        await self.update_player_message()
+
+    @discord.ui.button(custom_id="mute", row=2)
+    async def mute_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await interaction.response.defer()
+        self.player.toggle_mute()
+        await self.update_player_message()
+
+    @discord.ui.button(custom_id="vol_down", row=2)
+    async def vol_down_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await interaction.response.defer()
+        self.player.set_volume(self.player.volume - 0.2)
+        await self.update_player_message()
+
+    @discord.ui.button(custom_id="vol_up", row=2)
+    async def vol_up_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if self.player.volume >= 1.0:
+            return await interaction.response.send_message(
+                "⚠️ Достигнут максимальный уровень громкости (100%)",
+                ephemeral=True
+            )
+        
+        await interaction.response.defer()
+        self.player.set_volume(self.player.volume + 0.2)
+        await self.update_player_message()
+
+    @discord.ui.button(custom_id="add_query", row=2, style=discord.ButtonStyle.success)
+    async def add_query_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        """Открывает модальное окно для быстрого поиска музыки."""
+        await interaction.response.send_modal(SearchModal(self.player.bot, self.player))
+
+    @discord.ui.button(custom_id="disconnect", row=2, style=discord.ButtonStyle.danger)
+    async def disconnect_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        """Полная остановка и выход из канала."""
+        await interaction.response.defer()
         await self.player.disconnect()
-
-        if self._update_task:
-            self._update_task.cancel()
-
+        self.stop_auto_update()
         self.stop()
 
     async def _handle_seek(self, interaction: discord.Interaction, seconds: int):
-        """Общая логика для кнопок перемотки.
-
-        Args:
-            interaction: Объект взаимодействия.
-            seconds: Количество секунд для перемотки (отрицательное для назад).
-        """
         await interaction.response.defer()
         if not self.player.current_track:
             return await interaction.followup.send(MSG_ERR_NO_ACTIVE_TRACK, ephemeral=True)
-
-        self._set_seek_buttons_state(disabled=True)
-        try:
-            await self.message.edit(view=self)
-            if not await self.player.seek_relative(seconds):
-                direction = "вперед" if seconds > 0 else "назад"
-                await interaction.followup.send(
-                    MSG_ERR_SEEK_FAIL.format(direction=direction, seconds=abs(seconds)),
-                    ephemeral=True
-                )
-        except Exception as e:
-            logger.error(f"Ошибка перемотки: {e}")
-        finally:
-            self._set_seek_buttons_state(disabled=False)
-            await self.update_player_message()
-
-    def _set_seek_buttons_state(self, disabled: bool):
-        """Блокирует или разблокирует кнопки перемотки."""
-        for item in self.children:
-            if isinstance(item, discord.ui.Button) and item.custom_id in ["rewind", "forward"]:
-                item.disabled = disabled
-
-    @discord.ui.button(emoji=EMOJI_REWIND, style=discord.ButtonStyle.secondary, custom_id="rewind", row=1)
-    async def rewind_button(self, interaction: discord.Interaction, button: discord.ui.Button):
-        """Кнопка перемотки назад."""
-        seek_time = await SettingsService.get_discord_seek_time()
-        await self._handle_seek(interaction, -seek_time)
-
-    @discord.ui.button(emoji=EMOJI_FORWARD, style=discord.ButtonStyle.secondary, custom_id="forward", row=1)
-    async def forward_button(self, interaction: discord.Interaction, button: discord.ui.Button):
-        """Кнопка перемотки вперед."""
-        seek_time = await SettingsService.get_discord_seek_time()
-        await self._handle_seek(interaction, seek_time)
-
-    @discord.ui.button(emoji=EMOJI_QUEUE, style=discord.ButtonStyle.secondary, custom_id="queue", row=1)
-    async def queue_button(self, interaction: discord.Interaction, button: discord.ui.Button):
-        """Кнопка отображения текущей очереди треков с поддержкой пагинации."""
-        from .queue_pagination import QueuePaginationView
-        
-        if not self.player.queue:
-            return await interaction.response.send_message(MSG_ERR_QUEUE_EMPTY, ephemeral=True)
-
-        view = QueuePaginationView(self.player, self.ctx, items_per_page=10)
-        embed = view.create_embed()
-        
-        await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
-        view.message = await interaction.original_response()
-
-    @discord.ui.button(emoji=EMOJI_LOOP_NONE, style=discord.ButtonStyle.secondary, custom_id="loop_mode", row=1)
-    async def loop_mode_button(self, interaction: discord.Interaction, button: discord.ui.Button):
-        """Кнопка циклического переключения режима зацикливания."""
-        await interaction.response.defer()
-        mode = self.player.cycle_loop_mode()
-
-        mode_names = {
-            LoopMode.NONE: MSG_LOOP_OFF,
-            LoopMode.TRACK: MSG_LOOP_TRACK,
-            LoopMode.PLAYLIST: MSG_LOOP_PLAYLIST
-        }
-
+        await self.player.seek_relative(seconds)
         await self.update_player_message()
-        await interaction.followup.send(
-            MSG_LOOP_CHANGED.format(mode=mode_names.get(mode, MSG_LOOP_UNKNOWN)),
-            ephemeral=True
-        )
 
     async def update_player_message(self):
         """Обновляет сообщение плеера с актуальными данными и состоянием кнопок."""
         if not self.message:
             return
-
         self._update_buttons_ui()
-
         try:
             await self.message.edit(embed=self.create_player_embed(), view=self)
-        except Exception as e:
-            logger.debug(f"Не удалось обновить сообщение плеера (возможно, оно удалено): {e}")
+        except Exception:
+            pass
 
     def _update_buttons_ui(self):
         """Обновляет эмодзи и стили кнопок в зависимости от состояния плеера."""
@@ -245,122 +220,115 @@ class MusicPlayerView(BaseMusicView):
             if not isinstance(item, discord.ui.Button):
                 continue
 
+            item.emoji = emoji_manager.get(item.custom_id)
+            item.label = None
+
             if item.custom_id == "pause_resume":
                 show_play = self.player.is_paused or not self.player.is_playing
-                item.emoji = EMOJI_PLAY if show_play else EMOJI_PAUSE
-                item.style = discord.ButtonStyle.secondary if show_play else discord.ButtonStyle.primary
+                item.emoji = emoji_manager.get("play" if show_play else "pause")
+                item.style = discord.ButtonStyle.primary if not show_play else discord.ButtonStyle.secondary
 
             elif item.custom_id == "loop_mode":
-                self._update_loop_button(item)
+                if self.player.loop_mode == LoopMode.NONE:
+                    item.emoji = emoji_manager.get("norepeat")
+                    item.style = discord.ButtonStyle.secondary
+                else:
+                    item.emoji = emoji_manager.get("repeat_all" if self.player.loop_mode == LoopMode.PLAYLIST else "repeat1")
+                    item.style = discord.ButtonStyle.success
 
-    def _update_loop_button(self, button: discord.ui.Button):
-        """Обновляет состояние кнопки режима зацикливания."""
-        if self.player.loop_mode == LoopMode.NONE:
-            button.emoji = self._get_custom_emoji("norepeat", EMOJI_LOOP_NONE)
-            button.style = discord.ButtonStyle.secondary
-        elif self.player.loop_mode == LoopMode.TRACK:
-            button.emoji = self._get_custom_emoji("repeat1", EMOJI_LOOP_TRACK)
-            button.style = discord.ButtonStyle.success
-        elif self.player.loop_mode == LoopMode.PLAYLIST:
-            emoji = self._get_custom_emoji("repeat-1", None)
-            if not emoji:
-                emoji = self._get_custom_emoji("repeat_1", EMOJI_LOOP_PLAYLIST)
-            button.emoji = emoji
-            button.style = discord.ButtonStyle.success
-
-    def _get_custom_emoji(self, name: str, default: str | None) -> Union[discord.Emoji, discord.PartialEmoji, str, None]:
-        """Пытается получить кастомный эмодзи с сервера или возвращает стандартный.
-
-        Args:
-            name: Имя кастомного эмодзи.
-            default: Эмодзи по умолчанию (строка или None).
-
-        Returns:
-            Объект эмодзи или строка.
-        """
-        if self.message and self.message.guild:
-            emoji = discord.utils.get(self.message.guild.emojis, name=name)
-            if emoji:
-                return emoji
-        return default
+            elif item.custom_id in ["vol_down", "vol_up"]:
+                item.emoji = emoji_manager.get(item.custom_id)
+                item.style = discord.ButtonStyle.secondary
+        
+            elif item.custom_id == "mute":
+                item.emoji = emoji_manager.get("mute" if self.player.is_muted else "unmute")
+                item.style = discord.ButtonStyle.danger if self.player.is_muted else discord.ButtonStyle.secondary
 
     def create_player_embed(self) -> discord.Embed:
-        """Создает информативный Embed с текущим состоянием плеера.
-
-        Returns:
-            Объект discord.Embed.
-        """
+        """Создает информативный Embed согласно референсу."""
         track = self.player.current_track
         if not track:
-            return discord.Embed(
-                title=MSG_PLAYER_TITLE,
-                description=MSG_PLAYER_EMPTY,
-                color=DEFAULT_EMBED_COLOR
-            )
+            return discord.Embed(title="Плеер", description="Очередь пуста", color=DEFAULT_EMBED_COLOR)
 
-        queue_info = self.player.get_queue_info()
         pos, duration_sec = self.player.get_playback_position()
+        queue_info = self.player.get_queue_info()
 
+        track_url = track.get('url')
+        uploader = track.get('uploader', 'Неизвестно')
+        
         embed = discord.Embed(
-            title=MSG_NOW_PLAYING,
-            description=f"**{track['uploader']}**\n[{track['title']}]({track['url']})",
-            color=DEFAULT_EMBED_COLOR,
-            url=track['url']
+            title=track['title'],
+            url=track_url if track_url and track_url.strip() else None,
+            description=f"**Исполнитель:** `{uploader}`",
+            color=DEFAULT_EMBED_COLOR
         )
+        embed.set_author(name=MSG_NOW_PLAYING)
 
-        embed.add_field(name=MSG_DURATION, value=music_service.format_duration(track.get("duration") or 0), inline=True)
-        if track.get('thumbnail'):
-            embed.set_thumbnail(url=track['thumbnail'])
+        thumbnail = track.get('thumbnail')
+        if thumbnail and thumbnail.strip():
+            embed.set_thumbnail(url=thumbnail)
 
-        self._add_status_field(embed)
-        self._add_progress_field(embed, pos, duration_sec)
-        self._add_loop_field(embed)
-
-        embed.set_footer(
-            text=f"{MSG_PLAYER_FOOTER.format(current=queue_info['current_index'] + 1, total=queue_info['total'])}{INVISIBLE_SPACER}"
-        )
+        progress = pos / duration_sec if duration_sec > 0 else 0
+        filled = int(PROGRESS_BAR_LENGTH * progress)
+        bar = "━" * filled + "⚪" + "━" * (PROGRESS_BAR_LENGTH - filled - 1)
+        pos_str = music_service.format_duration(pos)
+        total_str = music_service.format_duration(duration_sec)
+        embed.add_field(name=MSG_PROGRESS, value=f"`{pos_str}` {bar} `{total_str}`", inline=False)
+        self._add_status_fields(embed)
+        total_tracks = len(self.player.queue)
+        current_idx = self.player.current_index + 1
+        embed.set_footer(text=f"{MSG_PLAYER_FOOTER.format(current=current_idx, total=total_tracks)}{INVISIBLE_SPACER}")
+        
         return embed
 
-    def _add_status_field(self, embed: discord.Embed):
-        """Добавляет поле статуса в Embed."""
-        if self.player.is_paused:
-            status = MSG_STATUS_PAUSED
-        elif self.player.is_playing:
-            status = MSG_STATUS_PLAYING
+    def _add_status_fields(self, embed: discord.Embed):
+        """Добавляет информацию о громкости и режиме зацикливания в одну строку."""
+        vol = self.player.volume
+        vol_percent = int(vol * 100)
+        is_muted = self.player.is_muted
+        vol_emoji = emoji_manager.get("mute" if is_muted else "unmute") or ("🔇" if is_muted else "🔊")
+        
+        if is_muted:
+            vol_bar = "───"
+            vol_text = "Заглушено"
         else:
-            status = MSG_STATUS_FINISHED
-        embed.add_field(name=MSG_STATUS, value=status, inline=True)
+            filled = int(15 * vol)
+            vol_bar = "▇" * filled + "─" * (15 - filled)
+            vol_text = f"{vol_percent}%"
+        
+        embed.add_field(name="\u200b", value=f"{vol_emoji} **Громкость:** `{vol_bar}` **{vol_text}**", inline=False)
 
-    def _add_progress_field(self, embed: discord.Embed, pos: int, total: int):
-        """Добавляет поле прогресс-бара в Embed."""
-        if total <= 0:
-            return
-
-        progress = pos / total if (self.player.is_playing or self.player.is_paused) else 1.0
-        filled = max(0, min(int(PROGRESS_BAR_LENGTH * progress), PROGRESS_BAR_LENGTH))
-
-        # Отрисовка полосы прогресса
-        if filled == 0:
-            bar = "○" + "─" * (PROGRESS_BAR_LENGTH - 1)
-        elif filled >= PROGRESS_BAR_LENGTH:
-            bar = "─" * (PROGRESS_BAR_LENGTH - 1) + "●"
-        else:
-            bar = "─" * (filled - 1) + "●" + "─" * (PROGRESS_BAR_LENGTH - filled)
-
-        pos_str = music_service.format_duration(pos)
-        total_str = music_service.format_duration(total)
-        embed.add_field(name=MSG_PROGRESS, value=f"`{pos_str}` {bar} `{total_str}`", inline=False)
-
-    def _add_loop_field(self, embed: discord.Embed):
-        """Добавляет информацию о режиме зацикливания в Embed."""
-        if self.player.loop_mode == LoopMode.NONE:
-            return
-
-        if self.player.loop_mode == LoopMode.TRACK:
-            emoji = self._get_custom_emoji("repeat1", EMOJI_LOOP_TRACK)
+        mode = self.player.loop_mode
+        if mode == LoopMode.TRACK:
+            emoji = emoji_manager.get("repeat1") or EMOJI_LOOP_TRACK
             label = MSG_LOOP_TRACK.capitalize()
-        else:
-            emoji = self._get_custom_emoji("repeat-1", None) or self._get_custom_emoji("repeat_1", EMOJI_LOOP_PLAYLIST)
+        elif mode == LoopMode.PLAYLIST:
+            emoji = emoji_manager.get("repeat_all") or EMOJI_LOOP_PLAYLIST
             label = MSG_LOOP_PLAYLIST.capitalize()
+        else:
+            emoji = emoji_manager.get("norepeat") or EMOJI_LOOP_NONE
+            label = MSG_LOOP_OFF.capitalize()
 
-        embed.add_field(name=f"{emoji} {MSG_LOOP_MODE}", value=label, inline=True)
+        embed.add_field(name="\u200b", value=f"{emoji} **{MSG_LOOP_MODE}:** {label}", inline=False)
+
+
+class SearchModal(discord.ui.Modal, title="Поиск музыки"):
+    """Диалоговое окно для ввода поискового запроса или ссылки."""
+    
+    query = discord.ui.TextInput(
+        label="Запрос или ссылка (YouTube/VK)",
+        placeholder="Введите название трека или вставьте ссылку...",
+        min_length=2,
+        max_length=200,
+        required=True
+    )
+
+    def __init__(self, bot: commands.Bot, player: "MusicPlayer"):
+        super().__init__()
+        self.bot = bot
+        self.player = player
+
+    async def on_submit(self, interaction: discord.Interaction):
+        await interaction.response.defer(ephemeral=True)
+        from src.bot.discord.bot.commands import CommandHandlers
+        await CommandHandlers.handle_search(self.bot, interaction, self.query.value)
