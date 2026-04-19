@@ -7,7 +7,7 @@
 ![Python](https://img.shields.io/badge/Python-3.11+-blue?style=for-the-badge&logo=python)
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.128.0-009688?style=for-the-badge&logo=fastapi)
 ![Aiogram](https://img.shields.io/badge/Aiogram-3.15.0-blue?style=for-the-badge&logo=telegram)
-![Discord.py](https://img.shields.io/badge/Discord.py-2.3.2-blue?style=for-the-badge&logo=discord)
+![Discord.py](https://img.shields.io/badge/Discord.py-2.7.1-blue?style=for-the-badge&logo=discord)
 ![Docker](https://img.shields.io/badge/Docker-20.10+-2496ED?style=for-the-badge&logo=docker)
 ![License](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)
 
