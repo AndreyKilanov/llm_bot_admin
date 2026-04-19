@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Any, TypeAlias
+from typing import TYPE_CHECKING, Any, TypeAlias, Union
 import discord
 from discord.ext import commands
 
@@ -26,26 +26,27 @@ class BaseMusicView(discord.ui.View):
         self, 
         interaction: discord.Interaction, 
         player: "MusicPlayer", 
-        ctx: commands.Context
+        ctx: Union[commands.Context, discord.Interaction]
     ) -> bool:
         """Проверяет наличие автора в голосовом канале и подключает плеер.
 
         Args:
             interaction: Объект взаимодействия Discord.
             player: Экземпляр музыкального плеера.
-            ctx: Контекст команды.
+            ctx: Контекст команды или Interaction.
 
         Returns:
             True, если подключение успешно, иначе False.
         """
-        if not ctx.author.voice:
+        user = ctx.author if isinstance(ctx, commands.Context) else ctx.user
+        if not user.voice:
             await interaction.response.send_message(
                 f"{EMOJI_ERROR} Вы больше не в голосовом канале!",
                 ephemeral=True
             )
             return False
 
-        if not await player.connect(ctx.author.voice.channel):
+        if not await player.connect(user.voice.channel):
             await interaction.followup.send(
                 f"{EMOJI_ERROR} Не удалось подключиться к голосовому каналу.",
                 ephemeral=True
@@ -54,25 +55,51 @@ class BaseMusicView(discord.ui.View):
 
         return True
 
-    async def _handle_playback_start(self, player: "MusicPlayer", ctx: commands.Context):
+    async def _handle_playback_start(self, player: "MusicPlayer", ctx: Union[commands.Context, discord.Interaction]):
         """Запускает воспроизведение и создает View плеера, если нужно.
 
         Args:
             player: Экземпляр музыкального плеера.
-            ctx: Контекст команды.
+            ctx: Контекст команды или Interaction.
         """
         from .music_player import MusicPlayerView
 
         if not player.is_playing:
             await player.play_from_start()
 
+        await player.clear_player_ui()
+
         if player.current_track:
             player_view = MusicPlayerView(player, ctx)
             embed = player_view.create_player_embed()
-            message = await ctx.send(embed=embed, view=player_view)
+            
+            if isinstance(ctx, commands.Context):
+                message = await ctx.send(embed=embed, view=player_view)
+            else:
+                if ctx.response.is_done():
+                    message = await ctx.followup.send(embed=embed, view=player_view)
+                else:
+                    await ctx.response.send_message(embed=embed, view=player_view)
+                    message = await ctx.original_response()
 
             player.player_view = player_view
             player.player_message = message
             player_view.message = message
 
             await player_view.start_auto_update()
+
+    async def _delete_with_delay(self, message: Union[discord.Message, discord.WebhookMessage, None], delay: float) -> None:
+        """Безопасно удаляет сообщение через указанную задержку."""
+        if not message:
+            return
+
+        async def delayed_delete():
+            import asyncio
+            await asyncio.sleep(delay)
+            try:
+                await message.delete()
+            except (discord.NotFound, discord.Forbidden, discord.HTTPException, TypeError):
+                pass
+        
+        import asyncio
+        asyncio.create_task(delayed_delete())
