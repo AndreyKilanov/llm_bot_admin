@@ -8,17 +8,17 @@ from typing import TYPE_CHECKING, Final
 import discord
 from src.services import music_service
 from .enums import LoopMode
-from .queue_manager import QueueManager, TrackData
+from .queue_manager import QueueManager
+from src.schemas import TrackInfo
 from .voice_handler import VoiceHandler
+from src.bot.discord.views.constants import ui_config
 
 if TYPE_CHECKING:
     from discord import Client, Message, TextChannel, VoiceChannel, VoiceClient
 
 logger = logging.getLogger("discord.music_player")
 
-DEFAULT_DISCONNECT_DELAY: Final[int] = 600
-PLAYLIST_CLEAR_TIMEOUT: Final[int] = 1800
-UI_UPDATE_DELAY: Final[float] = 0.1
+
 
 
 class MusicPlayer:
@@ -63,15 +63,15 @@ class MusicPlayer:
     # ==================== Прокси-свойства для удобства ====================
     
     @property
-    def queue(self) -> list[TrackData]:
+    def queue(self) -> list[TrackInfo]:
         return self.queue_manager.queue
 
     @property
-    def current_track(self) -> TrackData | None:
+    def current_track(self) -> TrackInfo | None:
         return self.queue_manager.current_track
 
     @current_track.setter
-    def current_track(self, value: TrackData | None) -> None:
+    def current_track(self, value: TrackInfo | None) -> None:
         self.queue_manager.current_track = value
 
     @property
@@ -118,7 +118,7 @@ class MusicPlayer:
         await self.voice_handler.disconnect()
         self._cancel_tasks()
 
-    def add_to_queue(self, tracks: list[TrackData]) -> None:
+    def add_to_queue(self, tracks: list[TrackInfo]) -> None:
         self.queue_manager.add(tracks)
 
     async def play_next(self) -> bool:
@@ -211,7 +211,7 @@ class MusicPlayer:
                 return False
             
             try:
-                url = str(self.current_track.get("url", ""))
+                url = str(self.current_track.url)
                 new_source = await music_service.get_audio_source(url, start_time=new_pos)
                 if not new_source:
                     return False
@@ -220,7 +220,7 @@ class MusicPlayer:
                 if vc:
                     self.voice_handler.manual_skip = True
                     vc.stop()
-                    await asyncio.sleep(UI_UPDATE_DELAY)
+                    await asyncio.sleep(ui_config.ui_update_delay)
                     
                     now = time.time()
                     self.start_time = now - new_pos
@@ -243,7 +243,7 @@ class MusicPlayer:
         if not self.current_track or not self.start_time:
             return (0, 0)
         
-        duration = int(self.current_track.get("duration", 0))
+        duration = int(self.current_track.duration)
         if self.is_paused and self.pause_time:
             elapsed = self.pause_time - self.start_time - self.paused_duration
         else:
@@ -332,23 +332,23 @@ class MusicPlayer:
 
     # ==================== Внутренняя логика ====================
 
-    async def _play_track(self, track: TrackData, retry_count: int = 0, is_retry: bool = False) -> bool:
+    async def _play_track(self, track: TrackInfo, retry_count: int = 0, is_retry: bool = False) -> bool:
         if not self.is_connected:
             return False
 
         if retry_count >= 5:
             logger.error("Слишком много ошибок воспроизведения подряд. Остановка.")
-            await self._notify_error("❌ Слишком много ошибок в очереди. Воспроизведение остановлено.")
+            await self._notify_error(ui_config.msg_err_too_many_errors)
             await self.stop_playback()
             return False
 
         vc: VoiceClient = self.voice_client
         try:
             self.voice_handler.stop_vc()
-            await asyncio.sleep(UI_UPDATE_DELAY)
+            await asyncio.sleep(ui_config.ui_update_delay)
 
-            title = track.get("title", "Unknown")
-            url = str(track.get("url", ""))
+            title = track.title
+            url = str(track.url)
             
             logger.info("Воспроизведение трека на сервере %d: %s", self.guild_id, title)
             audio_source = await music_service.get_audio_source(url)
@@ -359,7 +359,7 @@ class MusicPlayer:
                     await asyncio.sleep(1)
                     return await self._play_track(track, retry_count, is_retry=True)
                 
-                await self._notify_error(f"⚠️ Трек **{title}** недоступен (приватный или удален). Пропускаю...")
+                await self._notify_error(ui_config.msg_err_track_unavailable.format(title=title))
                 return await self._skip_to_next_on_error(retry_count)
 
             self.queue_manager.current_track = track
@@ -386,11 +386,11 @@ class MusicPlayer:
         except Exception as e:
             logger.error("Ошибка воспроизведения на сервере %d: %s", self.guild_id, e)
             if not is_retry:
-                logger.info("Повторная попытка воспроизведения трека %s после ошибки...", track.get('title'))
+                logger.info("Повторная попытка воспроизведения трека %s после ошибки...", track.title)
                 await asyncio.sleep(1)
                 return await self._play_track(track, retry_count, is_retry=True)
                 
-            await self._notify_error(f"⚠️ Ошибка при загрузке трека **{track.get('title')}**.")
+            await self._notify_error(ui_config.msg_err_load_track.format(title=track.title))
             return await self._skip_to_next_on_error(retry_count)
 
     async def _skip_to_next_on_error(self, retry_count: int) -> bool:
@@ -425,14 +425,14 @@ class MusicPlayer:
         try:
             if self.current_index + 1 < len(self.queue):
                 next_track = self.queue[self.current_index + 1]
-                await music_service.get_track_info(str(next_track.get("url", "")))
+                await music_service.get_track_info(str(next_track.url))
         except Exception as e:
             logger.error("Ошибка предзагрузки на сервере %d: %s", self.guild_id, e)
 
     async def _notify_error(self, message: str) -> None:
         if self.text_channel:
             try:
-                await self.text_channel.send(message, delete_after=10.0)
+                await self.text_channel.send(message, delete_after=ui_config.notification_delete_delay)
             except Exception:
                 pass
 
@@ -453,9 +453,9 @@ class MusicPlayer:
             self._disconnect_task.cancel()
 
         async def _delay() -> None:
-            await asyncio.sleep(DEFAULT_DISCONNECT_DELAY)
+            await asyncio.sleep(ui_config.player_disconnect_delay)
             if not self.is_playing or self.is_paused:
-                logger.info("Таймаут простоя (10 мин) на сервере %d. Отключение.", self.guild_id)
+                logger.info("Таймаут простоя на сервере %d. Отключение.", self.guild_id)
                 await self.disconnect()
 
         self._disconnect_task = asyncio.create_task(_delay())
@@ -465,9 +465,9 @@ class MusicPlayer:
             self._playlist_clear_task.cancel()
 
         async def _delay() -> None:
-            await asyncio.sleep(PLAYLIST_CLEAR_TIMEOUT)
+            await asyncio.sleep(ui_config.playlist_clear_timeout)
             if not self.is_playing or self.is_paused:
-                logger.info("Таймаут хранения очереди (30 мин) на сервере %d. Очистка.", self.guild_id)
+                logger.info("Таймаут хранения очереди на сервере %d. Очистка.", self.guild_id)
                 self.queue_manager.clear()
                 await self._update_player_ui()
 
