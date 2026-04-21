@@ -128,10 +128,12 @@ docker compose up -d --build
 | `BOT_TOKEN` | Токен Telegram бота |
 | `DISCORD_BOT_TOKEN` | Токен Discord бота |
 | `BASE_WEBHOOK_URL` | Публичный HTTPS адрес (для Telegram Webhook) |
-| `ADMIN_USERNAME` | Логин администратора |
-| `ADMIN_PASSWORD` | Пароль администратора |
-| `TELEGRAM_ADMIN_IDS` | ID Telegram пользователей для управления промптами |
-| `HISTORY_SIZE` | Размер истории по умолчанию |
+| `ADMIN_USERNAME` | Логин администратора для доступа к панели |
+| `ADMIN_PASSWORD` | Пароль администратора для доступа к панели |
+| `OPENROUTER_API_KEY` | API ключ OpenRouter (по умолчанию) |
+| `TELEGRAM_ADMIN_IDS` | ID Telegram пользователей для управления промптами через бот |
+| `HISTORY_SIZE` | Размер истории контекста по умолчанию (сообщений) | `10` |
+| `SYSTEM_PROMPT` | Начальный системный промпт для LLM |
 
 ---
 
