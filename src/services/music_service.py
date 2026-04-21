@@ -10,10 +10,15 @@ import logging
 import re
 import httpx
 import json
+import re
 from typing import Optional, TYPE_CHECKING
+from urllib.parse import urlparse
+
+import discord
+from src.schemas import TrackInfo
 
 if TYPE_CHECKING:
-    import discord
+    pass
 import yt_dlp
 
 logger = logging.getLogger("music.service")
@@ -69,8 +74,8 @@ class MusicService:
             fast_opts["extract_flat"] = True
             self.ytdl_fast = yt_dlp.YoutubeDL(fast_opts)
             
-            self._search_cache: dict[str, list[dict]] = {}
-            self._info_cache: dict[str, dict] = {}
+            self._search_cache: dict[str, list[TrackInfo]] = {}
+            self._info_cache: dict[str, TrackInfo] = {}
             self._initialized = True
             logger.info("MusicService инициализирован (Python 3.11+)")
 
@@ -84,11 +89,10 @@ class MusicService:
         Returns:
             True если URL корректный и относится к YouTube
         """
-        from urllib.parse import urlparse
         try:
             parsed = urlparse(url)
             return parsed.netloc in ("www.youtube.com", "youtube.com", "m.youtube.com", "youtu.be")
-        except:
+        except Exception:
             return False
     
     async def search_tracks(
@@ -96,7 +100,7 @@ class MusicService:
         query: str, 
         max_results: int = 5,
         extract_flat: bool = False
-    ) -> list[dict]:
+    ) -> list[TrackInfo]:
         """
         Поиск треков на YouTube по запросу.
         
@@ -121,7 +125,6 @@ class MusicService:
             loop = asyncio.get_running_loop()
             process_query = f"ytsearch{max_results}:{query}"
             
-            # Важно: создаем новый инстанс для каждого запроса, так как YoutubeDL не потокобезопасен
             opts = self.YTDL_OPTIONS.copy()
             if extract_flat:
                 opts["extract_flat"] = True
@@ -141,23 +144,23 @@ class MusicService:
                 if not entry:
                     continue
                     
-                track_info = {
-                    "title": self.clean_title(entry.get("title") or "Неизвестно"),
-                    "raw_title": entry.get("title") or "Неизвестно",
-                    "url": entry.get("webpage_url") or entry.get("url", ""),
-                    "duration": entry.get("duration") or 0,
-                    "thumbnail": entry.get("thumbnail") or "",
-                    "uploader": entry.get("uploader") or "Неизвестно",
-                    "id": entry.get("id", ""),
-                    "view_count": entry.get("view_count") or 0,
-                }
+                track_info = TrackInfo(
+                    title=self.clean_title(entry.get("title") or "Неизвестно"),
+                    raw_title=entry.get("title") or "Неизвестно",
+                    url=entry.get("webpage_url") or entry.get("url", ""),
+                    duration=entry.get("duration") or 0,
+                    thumbnail=entry.get("thumbnail") or "",
+                    uploader=entry.get("uploader") or "Неизвестно",
+                    id=entry.get("id", ""),
+                    view_count=entry.get("view_count") or 0,
+                )
                 tracks.append(track_info)
                 
-                if track_info["url"]:
-                    self._info_cache[track_info["url"]] = track_info
+                if track_info.url:
+                    self._info_cache[str(track_info.url)] = track_info
 
-            if any(t.get("view_count") for t in tracks):
-                tracks.sort(key=lambda x: x.get("view_count", 0), reverse=True)
+            if any(t.view_count for t in tracks):
+                tracks.sort(key=lambda x: x.view_count, reverse=True)
             
             logger.info(f"Найдено треков для '{query}': {len(tracks)}")
             self._search_cache[cache_key] = tracks
@@ -174,7 +177,6 @@ class MusicService:
         if not query.strip():
             return []
             
-        # Используем HTTPS и правильный URL
         url = "https://suggestqueries.google.com/complete/search"
         params = {
             "client": "firefox",
@@ -197,7 +199,7 @@ class MusicService:
             
         return []
 
-    async def search_tracks_fast(self, query: str, max_results: int = 10) -> list[dict]:
+    async def search_tracks_fast(self, query: str, max_results: int = 10) -> list[TrackInfo]:
         """
         Сверхбыстрый парсинг поисковой выдачи YouTube для автокомплита (в обход медленного yt-dlp).
         """
@@ -214,7 +216,6 @@ class MusicService:
                 response = await client.get(url, params=params, headers=headers, timeout=1.5)
                 html = response.text
                 
-            import re, json
             match = re.search(r"var ytInitialData = ({.*?});</script>", html)
             if not match:
                 return []
@@ -243,16 +244,15 @@ class MusicService:
                     uploader = video.get("ownerText", {}).get("runs", [{}])[0].get("text", "YouTube")
                     url = f"https://www.youtube.com/watch?v={video_id}"
                     
-                    track_info = {
-                        "title": self.clean_title(title),
-                        "raw_title": title,
-                        "url": url,
-                        "uploader": uploader,
-                        "id": video_id
-                    }
+                    track_info = TrackInfo(
+                        title=self.clean_title(title),
+                        raw_title=title,
+                        url=url,
+                        uploader=uploader,
+                        id=video_id
+                    )
                     tracks.append(track_info)
                     
-                    # Кэшируем для быстрого доступа при выборе
                     self._info_cache[url] = track_info
                     
                     if len(tracks) >= max_results:
@@ -265,7 +265,7 @@ class MusicService:
             return []
             
     
-    async def get_track_info(self, url: str) -> Optional[dict]:
+    async def get_track_info(self, url: str) -> Optional[TrackInfo]:
         """
         Получение информации о треке по URL.
         
@@ -295,14 +295,15 @@ class MusicService:
                     return None
                 data = data["entries"][0]
 
-            info = {
-                "title": data.get("title") or "Неизвестно",
-                "url": data.get("webpage_url") or data.get("url", ""),
-                "duration": data.get("duration") or 0,
-                "thumbnail": data.get("thumbnail") or "",
-                "uploader": data.get("uploader") or "Неизвестно",
-                "id": data.get("id", ""),
-            }
+            info = TrackInfo(
+                title=data.get("title") or "Неизвестно",
+                raw_title=data.get("title") or "Неизвестно",
+                url=data.get("webpage_url") or data.get("url", ""),
+                duration=data.get("duration") or 0,
+                thumbnail=data.get("thumbnail") or "",
+                uploader=data.get("uploader") or "Неизвестно",
+                id=data.get("id", ""),
+            )
             
             self._info_cache[url] = info
             return info
@@ -311,7 +312,7 @@ class MusicService:
             logger.error(f"Ошибка при получении информации о треке: {e}", exc_info=True)
             return None
 
-    async def get_playlist_info(self, url: str) -> list[dict]:
+    async def get_playlist_info(self, url: str) -> list[TrackInfo]:
         """
         Получение списка треков из плейлиста YouTube.
         
@@ -341,17 +342,18 @@ class MusicService:
             tracks = []
             for entry in data["entries"]:
                 if entry:
-                    track_info = {
-                        "title": entry.get("title") or "Неизвестно",
-                        "url": entry.get("webpage_url") or entry.get("url", ""),
-                        "duration": entry.get("duration") or 0,
-                        "thumbnail": entry.get("thumbnail") or "",
-                        "uploader": entry.get("uploader") or "Неизвестно",
-                        "id": entry.get("id", ""),
-                    }
+                    track_info = TrackInfo(
+                        title=self.clean_title(entry.get("title") or "Неизвестно"),
+                        raw_title=entry.get("title") or "Неизвестно",
+                        url=entry.get("webpage_url") or entry.get("url", ""),
+                        duration=entry.get("duration") or 0,
+                        thumbnail=entry.get("thumbnail") or "",
+                        uploader=entry.get("uploader") or "Неизвестно",
+                        id=entry.get("id", ""),
+                    )
                     tracks.append(track_info)
-                    if track_info["url"]:
-                        self._info_cache[track_info["url"]] = track_info
+                    if track_info.url:
+                        self._info_cache[str(track_info.url)] = track_info
 
             logger.info(f"Загружено треков из плейлиста: {len(tracks)}")
             return tracks
@@ -364,8 +366,6 @@ class MusicService:
         """
         Получение аудио-потока для воспроизведения в Discord.
         """
-        import discord
-        
         logger.info(f"Получение свежего аудио-потока: {url} (с {start_time}с)")
         
         try:
