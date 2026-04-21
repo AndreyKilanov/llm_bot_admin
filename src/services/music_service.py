@@ -362,9 +362,12 @@ class MusicService:
             logger.error(f"Ошибка при получении плейлиста: {e}", exc_info=True)
             return []
     
-    async def get_audio_source(self, url: str, start_time: int = 0):
+    async def get_audio_source(self, url: str, start_time: int = 0) -> Optional[tuple[discord.FFmpegPCMAudio, dict]]:
         """
-        Получение аудио-потока для воспроизведения в Discord.
+        Получение аудио-потока и метаданных для воспроизведения в Discord.
+        
+        Returns:
+            Кортеж (discord.FFmpegPCMAudio, data_dict) или None при ошибке.
         """
         logger.info(f"Получение свежего аудио-потока: {url} (с {start_time}с)")
         
@@ -394,7 +397,7 @@ class MusicService:
             source = discord.FFmpegPCMAudio(audio_url, **ffmpeg_options)
             logger.info(f"Аудио-поток создан (позиция: {int(start_time)}с)")
 
-            return source
+            return source, data
             
         except (yt_dlp.utils.DownloadError, yt_dlp.utils.ExtractorError) as e:
             logger.warning(f"Трек недоступен (приватный или удален): {url}. Ошибка: {e}")
