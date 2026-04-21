@@ -27,36 +27,43 @@ def create_app(bot: Optional[Bot] = None, dp: Any = None, use_webhook: bool = Fa
         await Tortoise.init(config=get_tortoise_config())
         logger.info("Tortoise ORM инициализирован")
 
-        try:
-            bot_user = await bot.get_me()
-            logger.info("Бот успешно подключен: @%s (ID: %s)", bot_user.username, bot_user.id)
-        except Exception as e:
-            logger.error("Ошибка при проверке подключения бота: %s", e)
+        if settings.ENABLE_TELEGRAM and bot:
+            try:
+                bot_user = await bot.get_me()
+                logger.info("Telegram бот подключен: @%s (ID: %s)", bot_user.username, bot_user.id)
+            except Exception as e:
+                logger.error("Ошибка при проверке подключения Telegram бота: %s", e)
 
-        if use_webhook:
-            url = f"{settings.BASE_WEBHOOK_URL.rstrip('/')}{settings.WEBHOOK_PATH}"
-            secret = settings.WEBHOOK_SECRET or None
-            await bot.set_webhook(url, secret_token=secret)
-            logger.info("Запуск в режиме WEBHOOK: %s", url)
+            if use_webhook:
+                url = f"{settings.BASE_WEBHOOK_URL.rstrip('/')}{settings.WEBHOOK_PATH}"
+                secret = settings.WEBHOOK_SECRET or None
+                await bot.set_webhook(url, secret_token=secret)
+                logger.info("Запуск в режиме WEBHOOK: %s", url)
+            else:
+                await bot.delete_webhook(drop_pending_updates=True)
+                logger.info("Запуск в режиме POLLING (в фоне)")
+                asyncio.create_task(dp.start_polling(bot))
         else:
-            await bot.delete_webhook(drop_pending_updates=True)
-            logger.info("Запуск в режиме POLLING (в фоне)")
-            asyncio.create_task(dp.start_polling(bot))
+            logger.info("Telegram бот пропущен (отключен или не инициализирован)")
 
-        try:
-            logger.info("Инициализация Discord бота...")
-            asyncio.create_task(discord_bot.start())
-        except Exception as e:
-             logger.error(f"Не удалось запустить Discord бота: {e}")
+        if settings.ENABLE_DISCORD and settings.DISCORD_BOT_TOKEN:
+            try:
+                logger.info("Инициализация Discord бота...")
+                asyncio.create_task(discord_bot.start())
+            except Exception as e:
+                logger.error(f"Не удалось запустить Discord бота: {e}")
+        else:
+            logger.info("Discord бот пропущен (отключен или отсутствует токен)")
 
         yield
 
         logger.info("Завершение работы приложения...")
-        try:
-            await discord_bot.stop()
-            logger.info("Discord бот остановлен.")
-        except Exception as e:
-            logger.error(f"Ошибка при остановке Discord бота: {e}")
+        if settings.ENABLE_DISCORD and settings.DISCORD_BOT_TOKEN:
+            try:
+                await discord_bot.stop()
+                logger.info("Discord бот остановлен.")
+            except Exception as e:
+                logger.error(f"Ошибка при остановке Discord бота: {e}")
 
         await Tortoise.close_connections()
         logger.info("Tortoise ORM соединения закрыты")
