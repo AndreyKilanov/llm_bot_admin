@@ -1,8 +1,10 @@
 from typing import TYPE_CHECKING, Any, TypeAlias, Union
+import asyncio
 import discord
 from discord.ext import commands
 
-from .constants import EMOJI_ERROR
+from .constants import ui_config
+from .emoji_manager import emoji_manager
 
 if TYPE_CHECKING:
     from src.bot.discord.player import MusicPlayer
@@ -38,17 +40,18 @@ class BaseMusicView(discord.ui.View):
         Returns:
             True, если подключение успешно, иначе False.
         """
+        e = emoji_manager.get_all()
         user = ctx.author if isinstance(ctx, commands.Context) else ctx.user
         if not user.voice:
             await interaction.response.send_message(
-                f"{EMOJI_ERROR} Вы больше не в голосовом канале!",
+                f"{e.error} {ui_config.msg_err_not_in_voice}",
                 ephemeral=True
             )
             return False
 
         if not await player.connect(user.voice.channel):
             await interaction.followup.send(
-                f"{EMOJI_ERROR} Не удалось подключиться к голосовому каналу.",
+                f"{e.error} {ui_config.msg_conn_fail}",
                 ephemeral=True
             )
             return False
@@ -94,12 +97,10 @@ class BaseMusicView(discord.ui.View):
             return
 
         async def delayed_delete():
-            import asyncio
             await asyncio.sleep(delay)
             try:
                 await message.delete()
             except (discord.NotFound, discord.Forbidden, discord.HTTPException, TypeError):
                 pass
         
-        import asyncio
         asyncio.create_task(delayed_delete())
