@@ -126,3 +126,16 @@ class VoiceHandler:
             self.manual_skip = True
             vc.stop()
             logger.debug("Воспроизведение VoiceClient остановлено принудительно")
+
+    def is_alone(self) -> bool:
+        """Проверить, остался ли бот один в голосовом канале.
+        
+        Returns:
+            True, если в канале нет других пользователей (кроме ботов).
+        """
+        vc = self.voice_client
+        if not vc or not vc.channel:
+            return False
+            
+        human_members = [m for m in vc.channel.members if not m.bot]
+        return len(human_members) == 0
