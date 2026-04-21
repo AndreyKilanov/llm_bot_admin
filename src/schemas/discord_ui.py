@@ -22,6 +22,7 @@ class BotUIConfig(BaseModel):
     msg_progress: str = "Прогресс"
     msg_loop_mode: str = "Режим"
     msg_player_footer: str = "♫ Трек {current} из {total}"
+    msg_queue_footer: str = "Страница {current} из {total}"
     msg_player_empty: str = "Нет активного трека в данный момент."
     msg_playback_stopped: str = "⏹️ Воспроизведение остановлено. Бот остался в канале."
     
@@ -39,8 +40,8 @@ class BotUIConfig(BaseModel):
     msg_no_lyrics: str = "❌ Текст песни не найден для этого трека."
     
     # Команды и права
-    msg_bot_disabled: str = "❌ Discord бот отключен в настройках администратора."
-    msg_music_disabled: str = "❌ Музыкальный плеер отключен в настройках администратора."
+    msg_bot_disabled: str = "Бот выключен в админ панели. Включите для использования"
+    msg_music_disabled: str = "Музыкальный плеер выключен в админ панели. Включите для использования"
     msg_voice_required: str = "❌ Вы должны находиться в голосовом канале!"
     
     # Поиск и загрузка
