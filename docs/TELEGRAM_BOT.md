@@ -99,7 +99,8 @@ src/bot/telegram/
 
 | Ключ                       | Тип     | Описание                   | По умолчанию |
 |----------------------------|---------|----------------------------|--------------|
-| `telegram_bot_enabled`     | boolean | Включение/выключение бота  | `true`       |
+| `ENABLE_TELEGRAM`     | boolean | Включение инициализации бота при старте | `true` (env) |
+| `telegram_bot_enabled`     | boolean | Включение/выключение бота в БД  | `true`       |
 | `telegram_allow_new_chats` | boolean | Разрешить новые чаты       | `true`       |
 | `allow_private_chat`       | boolean | Разрешить личные сообщения | `true`       |
 | `telegram_memory_limit`    | integer | Лимит истории сообщений    | `10`         |
