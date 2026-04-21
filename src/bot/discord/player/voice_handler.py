@@ -4,14 +4,11 @@ import asyncio
 import logging
 from typing import TYPE_CHECKING, Final
 
-import discord
 
-if TYPE_CHECKING:
-    from discord import VoiceClient, VoiceChannel, Client
+from discord import VoiceClient, VoiceChannel, Client
+from src.bot.discord.views.constants import ui_config
 
 logger = logging.getLogger("discord.music_player.voice")
-
-CONNECT_TIMEOUT: Final[float] = 20.0
 
 
 class VoiceHandler:
@@ -93,13 +90,13 @@ class VoiceHandler:
                 try:
                     await vc.disconnect(force=True)
                     await asyncio.sleep(0.5)
-                except:
+                except Exception:
                     pass
 
         self._is_connecting = True
         try:
             logger.info("Подключение к голосовому каналу '%s' сервера %d...", channel.name, self.guild_id)
-            await channel.connect(timeout=CONNECT_TIMEOUT, reconnect=True)
+            await channel.connect(timeout=ui_config.voice_connect_timeout, reconnect=True)
             return True
         except Exception as e:
             logger.error("Ошибка подключения на сервере %d: %s", self.guild_id, e)
@@ -107,7 +104,7 @@ class VoiceHandler:
             if current_vc:
                 try:
                     await current_vc.disconnect(force=True)
-                except:
+                except Exception:
                     pass
             return False
         finally:
