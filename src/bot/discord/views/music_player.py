@@ -108,9 +108,16 @@ class MusicPlayerView(BaseMusicView):
     @discord.ui.button(custom_id="queue", row=1)
     async def queue_button(self, interaction: discord.Interaction, button: discord.ui.Button):
         if not self.player.queue:
-            return await interaction.response.send_message(ui_config.msg_err_queue_empty, ephemeral=True)
-        view = QueuePaginationView(self.player, self.ctx, items_per_page=10)
-        await interaction.response.send_message(embed=view.create_embed(), view=view, ephemeral=True)
+            return await interaction.response.send_message(ui_config.msg_err_queue_empty, ephemeral=True, delete_after=10)
+        
+        try:
+            view = QueuePaginationView(self.player, self.ctx, items_per_page=10)
+            embed = view.create_embed()
+            await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
+        except Exception as e:
+            logger.error(f"Ошибка при создании очереди: {e}")
+            e_emoji = emoji_manager.get_all().error
+            await interaction.response.send_message(f"{e_emoji} {ui_config.msg_error}", ephemeral=True, delete_after=10)
 
     @discord.ui.button(custom_id="lyrics", row=1)
     async def lyrics_button(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -135,8 +142,8 @@ class MusicPlayerView(BaseMusicView):
         """Остановка без выхода из канала."""
         await interaction.response.defer()
         await self.player.stop_playback_only()
-        msg = await interaction.followup.send(ui_config.msg_playback_stopped)
-        await self._delete_with_delay(msg, ui_config.notification_timeout)
+        msg = await interaction.followup.send(ui_config.msg_playback_stopped, ephemeral=True)
+        await self._delete_with_delay(msg, 10)
         await self.update_player_message()
 
     @discord.ui.button(custom_id="mute", row=2)
@@ -156,7 +163,8 @@ class MusicPlayerView(BaseMusicView):
         if self.player.volume >= 1.0:
             return await interaction.response.send_message(
                 ui_config.msg_volume_max,
-                ephemeral=True
+                ephemeral=True,
+                delete_after=10
             )
         
         await interaction.response.defer()
@@ -281,14 +289,13 @@ class MusicPlayerView(BaseMusicView):
         vol_emoji = e.mute if is_muted else e.unmute
         
         if is_muted:
-            vol_bar = "───"
-            vol_text = "Заглушено"
+            value = f"{vol_emoji} **Заглушено**"
         else:
             filled = int(15 * vol)
             vol_bar = "▇" * filled + "─" * (15 - filled)
-            vol_text = f"{vol_percent}%"
+            value = f"{vol_emoji} **Громкость:** `{vol_bar}` **{vol_percent}%**"
         
-        embed.add_field(name="\u200b", value=f"{vol_emoji} **Громкость:** `{vol_bar}` **{vol_text}**", inline=False)
+        embed.add_field(name="\u200b", value=value, inline=False)
 
         mode = self.player.loop_mode
         if mode == LoopMode.TRACK:
@@ -323,7 +330,7 @@ class SearchModal(discord.ui.Modal):
 
     async def on_submit(self, interaction: discord.Interaction):
         await interaction.response.defer(ephemeral=True)
-        cog = self.bot.get_cog("MusicCog")
+        cog = self.bot.get_cog("PlaybackCommands")
         if cog:
             await cog._handle_play_logic(interaction, self.query.value)
         else:
