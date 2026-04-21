@@ -66,6 +66,12 @@ class MessageHandler:
             return False
 
         if not await SettingsService.is_discord_bot_enabled():
+            is_mentioned = self.bot.user in message.mentions or f"<@{self.bot.user.id}>" in message.content
+            if is_mentioned:
+                try:
+                    await message.channel.send(ui_config.msg_bot_disabled)
+                except Exception:
+                    pass
             return False
 
         return True
