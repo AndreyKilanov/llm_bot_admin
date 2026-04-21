@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Final
 
 import discord
+from src.schemas import BotEmojis
 
 if TYPE_CHECKING:
     pass
@@ -23,35 +24,16 @@ class EmojiManager:
 
     Загружает PNG-иконки как Application Emojis при on_ready.
     При повторном запуске переиспользует уже загруженные emoji.
-    Если emoji недоступен — возвращает Unicode fallback из EMOJI_FALLBACK.
+    Если emoji недоступен — возвращает Unicode fallback из BotEmojis.
     """
 
     ICONS_DIR: Final[Path] = Path("src/bot/discord/assets/icons")
-    EMOJI_FALLBACK: Final[dict[str, str]] = {
-        "shuffle":     "🔀",
-        "norepeat":    "↔️",
-        "repeat1":     "🔂",
-        "repeat_all":  "🔁",
-        "rewind":      "⏮",
-        "previous":    "⏮️",
-        "next":        "⏭️",
-        "forward":     "⏩",
-        "queue":       "📜",
-        "lyrics":      "📄",
-        "stop_only":   "⏹",
-        "play":        "▶️",
-        "pause":       "⏸️",
-        "mute":        "🔇",
-        "unmute":      "🔊",
-        "vol_down":    "🔉",
-        "vol_up":      "🔊",
-        "add_query":   "➕",
-        "disconnect":  "↩️",
-    }
 
     def __init__(self) -> None:
         """Инициализация менеджера без подключения к Discord."""
         self._emojis: dict[str, discord.Emoji] = {}
+        self._cached_schema: BotEmojis | None = None
+        self._default_emojis = BotEmojis()
         self._initialized: bool = False
 
     async def initialize(self, bot: discord.Client) -> None:
@@ -84,13 +66,12 @@ class EmojiManager:
         loaded = 0
         failed = 0
 
-        for name in self.EMOJI_FALLBACK:
+        for name in BotEmojis.model_fields.keys():
             icon_path = self.ICONS_DIR / f"{name}.png"
             if not icon_path.exists():
                 logger.warning(
-                    "Файл иконки не найден: %s. Будет использован Unicode fallback '%s'",
+                    "Файл иконки не найден: %s. Будет использован Unicode fallback из BotEmojis",
                     icon_path,
-                    self.EMOJI_FALLBACK[name],
                 )
                 continue
 
@@ -107,6 +88,7 @@ class EmojiManager:
                 failed += 1
 
         self._initialized = True
+        self._cached_schema = None
         logger.info(
             "Синхронизация иконок завершена: %d обновлено, %d не удалось.",
             loaded,
@@ -125,11 +107,30 @@ class EmojiManager:
         Returns:
             discord.Emoji или Unicode строка.
         """
-        return self._emojis.get(name, self.EMOJI_FALLBACK.get(name, "❓"))
+        if name in self._emojis:
+            return self._emojis[name]
+        
+        return getattr(self._default_emojis, name, "❓")
+    
+    def get_all(self) -> BotEmojis:
+        """Возвращает Pydantic-схему со всеми актуальными эмодзи.
+        
+        Объект кэшируется после первого вызова до следующей инициализации/сброса.
+        
+        Returns:
+            BotEmojis: Схема со всеми иконками.
+        """
+        if self._cached_schema:
+            return self._cached_schema
+            
+        data = {name: self.get(name) for name in BotEmojis.model_fields.keys()}
+        self._cached_schema = BotEmojis(**data)
+        return self._cached_schema
 
     def reset(self) -> None:
         """Сбросить состояние (для повторной инициализации при рестарте)."""
         self._emojis.clear()
+        self._cached_schema = None
         self._initialized = False
 
 
