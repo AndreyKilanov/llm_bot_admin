@@ -1,11 +1,11 @@
 from datetime import datetime, timedelta, timezone
-from typing import Any
 
 from tortoise.functions import Count, Max
 
 from src.database import ChatMessage
 from src.logger import log_function
 from src.database.models import AllowedChat
+from src.schemas import ChatMessagePayload, ChatStats, ChatInfo
 
 
 class HistoryService:
@@ -19,10 +19,23 @@ class HistoryService:
         content: str, 
         platform: str = "telegram", 
         chat_type: str = "private",
-        title: str = None,
-        nickname: str = None
+        title: str | None = None,
+        nickname: str | None = None
     ) -> ChatMessage:
-        """Добавляет сообщение в историю и обновляет метаданные чата."""
+        """Добавляет сообщение в историю и обновляет метаданные чата.
+
+        Args:
+            chat_id: ID чата.
+            role: Роль отправителя (user/assistant/system).
+            content: Текст сообщения.
+            platform: Платформа (telegram/discord).
+            chat_type: Тип чата (private/group/guild).
+            title: Название чата.
+            nickname: Никнейм пользователя.
+
+        Returns:
+            ChatMessage: Созданный объект сообщения.
+        """
         if title:
             if chat_type == "private" and nickname:
                 if f"({nickname})" not in title:
@@ -52,15 +65,27 @@ class HistoryService:
 
     @staticmethod
     @log_function
-    async def get_last_messages(chat_id: int, platform: str = "telegram", limit: int = 10) -> list[dict[str, str]]:
-        """Возвращает последние сообщения чата."""
+    async def get_last_messages(chat_id: int, platform: str = "telegram", limit: int = 10) -> list[ChatMessagePayload]:
+        """Возвращает последние сообщения чата.
+
+        Args:
+            chat_id: ID чата.
+            platform: Платформа.
+            limit: Количество последних сообщений (пар).
+
+        Returns:
+            list[ChatMessagePayload]: Список сообщений.
+        """
         recent_messages = (
             await ChatMessage.filter(chat_id=chat_id, platform=platform)
             .order_by("-created_at")
             .limit(limit * 2)
         )
         recent_messages.sort(key=lambda x: x.created_at)
-        return [{"role": m.role, "content": m.content, "nickname": m.nickname} for m in recent_messages]
+        return [
+            ChatMessagePayload(role=m.role, content=m.content, nickname=m.nickname) 
+            for m in recent_messages
+        ]
 
     @staticmethod
     @log_function
@@ -74,7 +99,7 @@ class HistoryService:
         await ChatMessage.all().delete()
 
     @staticmethod
-    async def get_stats() -> dict[str, Any]:
+    async def get_stats() -> ChatStats:
         """Возвращает статистику по сообщениям."""
         now = datetime.now(timezone.utc)
         last_24h = now - timedelta(days=1)
@@ -87,19 +112,19 @@ class HistoryService:
         assistant_messages = await ChatMessage.filter(role="assistant").count()
         user_messages = await ChatMessage.filter(role="user").count()
 
-        return {
-            "chats_count": chats_count, 
-            "total_messages": total_messages,
-            "telegram_messages": tg_stats,
-            "discord_messages": dc_stats,
-            "messages_24h": messages_24h,
-            "active_chats_24h": active_chats_24h,
-            "assistant_messages": assistant_messages,
-            "user_messages": user_messages
-        }
+        return ChatStats(
+            chats_count=chats_count, 
+            total_messages=total_messages,
+            telegram_messages=tg_stats,
+            discord_messages=dc_stats,
+            messages_24h=messages_24h,
+            active_chats_24h=active_chats_24h,
+            assistant_messages=assistant_messages,
+            user_messages=user_messages
+        )
 
     @staticmethod
-    async def list_chats() -> list[dict[str, Any]]:
+    async def list_chats() -> list[ChatInfo]:
         """Возвращает список чатов с количеством сообщений и метаданными."""
         stats = (
             await ChatMessage.annotate(
@@ -109,4 +134,4 @@ class HistoryService:
             .group_by("chat_id", "platform", "chat_type")
             .values("chat_id", "platform", "chat_type", "message_count", "last_message_at")
         )
-        return list(stats)
+        return [ChatInfo(**s) for s in stats]
