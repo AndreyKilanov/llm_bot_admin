@@ -15,6 +15,7 @@ from src.bot.discord.views import MusicPlayerView
 from src.services import SettingsService
 from src.schemas import TrackInfo
 from src.bot.discord.views.constants import ui_config
+from src.services.player_state_service import PlayerStateService
 
 logger = logging.getLogger("discord.music_cog.base")
 
@@ -165,14 +166,29 @@ class BaseMusicCog(commands.Cog):
         if not player.current_track:
             return
 
+        guild_id = player.guild_id
+        
         if player.player_message:
             await player.clear_player_ui()
+        else:
+            state = await PlayerStateService.get_player_msg(guild_id)
+            if state:
+                ch_id, msg_id = state
+                try:
+                    target_channel = self.bot.get_channel(ch_id) or await self.bot.fetch_channel(ch_id)
+                    if isinstance(target_channel, discord.TextChannel):
+                        old_msg = await target_channel.fetch_message(msg_id)
+                        await old_msg.delete()
+                        logger.info("Удалено устаревшее сообщение плеера на сервере %d", guild_id)
+                except Exception:
+                    pass
+                await PlayerStateService.clear_player_msg(guild_id)
 
         view = MusicPlayerView(player, ctx)
         embed = view.create_player_embed()
         
         if isinstance(ctx, commands.Context):
-            message = await ctx.send(embed=embed, view=view)
+            message = await ctx.channel.send(embed=embed, view=view)
         else:
             if ctx.response.is_done():
                 message = await ctx.followup.send(embed=embed, view=view)
@@ -183,5 +199,7 @@ class BaseMusicCog(commands.Cog):
         player.player_view = view
         player.player_message = message
         view.message = message
+        
+        await PlayerStateService.save_player_msg(guild_id, message.channel.id, message.id)
         
         await view.start_auto_update()
