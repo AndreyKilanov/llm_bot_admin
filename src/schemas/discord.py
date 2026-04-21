@@ -44,9 +44,6 @@ class BotEmojis(BaseModel):
     search: str = "🔍"
 
 
-
-
-
 class BotCommandsConfig(BaseModel):
     """Схема для всех имен и описаний команд бота."""
     
