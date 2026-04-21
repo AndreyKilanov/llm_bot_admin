@@ -14,6 +14,7 @@ class Settings(BaseSettings):
     TELEGRAM_PROXY_URL: str | None = None
 
     # Discord
+    ENABLE_DISCORD: bool = True
     DISCORD_BOT_TOKEN: str | None = None
 
 
