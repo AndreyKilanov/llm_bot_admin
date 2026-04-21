@@ -168,9 +168,9 @@ class QueuePaginationView(BaseMusicView):
                 inline=False,
             )
 
-        footer_text = ui_config.msg_player_footer.format(
+        footer_text = ui_config.msg_queue_footer.format(
             current=self.current_page + 1, 
-            pages=self.total_pages
+            total=self.total_pages
         )
         embed.set_footer(
             text=f"{footer_text}{ui_config.invisible_spacer}"
