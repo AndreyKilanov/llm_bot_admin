@@ -1,10 +1,13 @@
 from typing import TYPE_CHECKING, Any, TypeAlias, Union
 import asyncio
+import logging
 import discord
 from discord.ext import commands
 
 from .constants import ui_config
 from .emoji_manager import emoji_manager
+from src.services import SettingsService
+from src.bot.discord.player import PlayerFactory
 
 if TYPE_CHECKING:
     from src.bot.discord.player import MusicPlayer
@@ -104,3 +107,50 @@ class BaseMusicView(discord.ui.View):
                 pass
         
         asyncio.create_task(delayed_delete())
+
+    async def on_error(self, interaction: discord.Interaction, error: Exception, item: discord.ui.Item) -> None:
+        """Обработка ошибок при взаимодействии с компонентами View.
+        
+        Отправляет эфемерное сообщение об ошибке и логирует исключение.
+        """
+        logging.getLogger("discord.views").error(f"Ошибка в {self.__class__.__name__} при нажатии {item}: {error}", exc_info=error)
+        
+        e = emoji_manager.get_all()
+        msg_text = f"{e.error} {ui_config.msg_error}"
+        
+        try:
+            if interaction.response.is_done():
+                msg = await interaction.followup.send(msg_text, ephemeral=True)
+                await self._delete_with_delay(msg, 10)
+            else:
+                await interaction.response.send_message(msg_text, ephemeral=True)
+                msg = await interaction.original_response()
+                await self._delete_with_delay(msg, 10)
+        except (discord.HTTPException, discord.InteractionResponded):
+            pass
+
+    async def interaction_check(self, interaction: discord.Interaction) -> bool:
+        """Проверяет, разрешено ли взаимодействие с компонентами View.
+        
+        Если бот выключен в админке, выводит предупреждение и останавливает плеер.
+        """
+        if not await SettingsService.is_discord_bot_enabled():
+            if not interaction.response.is_done():
+                await interaction.response.send_message(
+                    ui_config.msg_bot_disabled, 
+                    ephemeral=True
+                )
+            else:
+                await interaction.followup.send(
+                    ui_config.msg_bot_disabled, 
+                    ephemeral=True
+                )
+            
+            # Если бот выключен, но плеер играет, останавливаем его
+            if interaction.guild_id:
+                player = PlayerFactory.get_player(interaction.guild_id, interaction.client)
+                if player and player.is_connected:
+                    await player.disconnect()
+            return False
+            
+        return True
