@@ -31,13 +31,13 @@
                 <i data-lucide="log-in" class="icon-md"></i>
                 Войти
             </button>
-        </form>
 
-        {% if error %}
-        <div class="login-error">
-            {{ error }}
-        </div>
-        {% endif %}
+            {% if error %}
+            <div class="login-error">
+                {{ error }}
+            </div>
+            {% endif %}
+        </form>
     </div>
 </div>
 {% endblock %}

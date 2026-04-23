@@ -7,11 +7,18 @@
 
 import asyncio
 import logging
+import re
+import httpx
+import json
+import re
 from typing import Optional, TYPE_CHECKING
+from urllib.parse import urlparse
 
-# Ленивый импорт discord для избежания зависимости при использовании только Telegram
+import discord
+from src.schemas import TrackInfo
+
 if TYPE_CHECKING:
-    import discord
+    pass
 import yt_dlp
 
 logger = logging.getLogger("music.service")
@@ -27,7 +34,6 @@ class MusicService:
     
     _instance: Optional["MusicService"] = None
 
-    # Настройки для ускорения извлечения данных
     YTDL_OPTIONS = {
         "format": "bestaudio/best",
         "extractaudio": True,
@@ -42,15 +48,15 @@ class MusicService:
         "no_warnings": True,
         "default_search": "ytsearch",
         "source_address": "0.0.0.0",
-        "extract_flat": "in_playlist",  # Ускоряет извлечение метаданных
+        "extract_flat": "in_playlist",
         "cachedir": False,
         "youtube_include_dash_manifest": False,
         "youtube_include_hls_manifest": False,
     }
 
     FFMPEG_OPTIONS = {
-        "before_options": "-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5 -reconnect_at_eof 1",
-        "options": "-vn -sn -dn -af loudnorm",
+        "before_options": "-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 2 -reconnect_on_network_error 1 -reconnect_on_http_error 403,404,500,502,503,504 -reconnect_at_eof 1",
+        "options": "-vn -sn -dn -af loudnorm=I=-16:TP=-1.5:LRA=11 -buffer_size 16M -nostats",
     }
     
     def __new__(cls) -> "MusicService":
@@ -63,10 +69,15 @@ class MusicService:
         """Инициализация сервиса."""
         if not hasattr(self, "_initialized"):
             self.ytdl = yt_dlp.YoutubeDL(self.YTDL_OPTIONS)
-            self._search_cache: dict[str, list[dict]] = {}
-            self._info_cache: dict[str, dict] = {}
+            
+            fast_opts = self.YTDL_OPTIONS.copy()
+            fast_opts["extract_flat"] = True
+            self.ytdl_fast = yt_dlp.YoutubeDL(fast_opts)
+            
+            self._search_cache: dict[str, list[TrackInfo]] = {}
+            self._info_cache: dict[str, TrackInfo] = {}
             self._initialized = True
-            logger.info("MusicService инициализирован (с кэшированием метаданных)")
+            logger.info("MusicService инициализирован (Python 3.11+)")
 
     def is_valid_url(self, url: str) -> bool:
         """
@@ -78,18 +89,18 @@ class MusicService:
         Returns:
             True если URL корректный и относится к YouTube
         """
-        from urllib.parse import urlparse
         try:
             parsed = urlparse(url)
             return parsed.netloc in ("www.youtube.com", "youtube.com", "m.youtube.com", "youtu.be")
-        except:
+        except Exception:
             return False
     
     async def search_tracks(
         self, 
         query: str, 
-        max_results: int = 5
-    ) -> list[dict]:
+        max_results: int = 5,
+        extract_flat: bool = False
+    ) -> list[TrackInfo]:
         """
         Поиск треков на YouTube по запросу.
         
@@ -100,51 +111,161 @@ class MusicService:
         Returns:
             Список словарей с информацией о треках
         """
-        cache_key = f"{query}:{max_results}"
+        query = query.strip()
+        if not query:
+            return []
+
+        cache_key = f"{query}:{max_results}:{extract_flat}"
         if cache_key in self._search_cache:
-            logger.info(f"Получение из кэша поиска: {query}")
             return self._search_cache[cache_key]
 
-        logger.info(f"Поиск треков: {query}")
+        logger.info(f"Поиск треков на YouTube: {query}")
         
         try:
-            loop = asyncio.get_event_loop()
-            data = await loop.run_in_executor(
-                None,
-                lambda: self.ytdl.extract_info(
-                    f"ytsearch{max_results}:{query}",
-                    download=False
-                )
-            )
+            loop = asyncio.get_running_loop()
+            process_query = f"ytsearch{max_results}:{query}"
+            
+            opts = self.YTDL_OPTIONS.copy()
+            if extract_flat:
+                opts["extract_flat"] = True
+            
+            def _extract():
+                with yt_dlp.YoutubeDL(opts) as ydl:
+                    return ydl.extract_info(process_query, download=False)
+
+            data = await loop.run_in_executor(None, _extract)
             
             if not data or "entries" not in data:
-                logger.warning(f"Треки не найдены для запроса: {query}")
+                logger.warning(f"YouTube не вернул результатов для запроса: {query}")
                 return []
             
             tracks = []
             for entry in data["entries"]:
-                if entry:
-                    track_info = {
-                        "title": entry.get("title") or "Неизвестно",
-                        "url": entry.get("webpage_url") or entry.get("url", ""),
-                        "duration": entry.get("duration") or 0,
-                        "thumbnail": entry.get("thumbnail") or "",
-                        "uploader": entry.get("uploader") or "Неизвестно",
-                        "id": entry.get("id", ""),
-                    }
-                    tracks.append(track_info)
-                    if track_info["url"]:
-                        self._info_cache[track_info["url"]] = track_info
+                if not entry:
+                    continue
+                    
+                track_info = TrackInfo(
+                    title=self.clean_title(entry.get("title") or "Неизвестно"),
+                    raw_title=entry.get("title") or "Неизвестно",
+                    url=entry.get("webpage_url") or entry.get("url", ""),
+                    duration=entry.get("duration") or 0,
+                    thumbnail=entry.get("thumbnail") or "",
+                    uploader=entry.get("uploader") or "Неизвестно",
+                    id=entry.get("id", ""),
+                    view_count=entry.get("view_count") or 0,
+                )
+                tracks.append(track_info)
+                
+                if track_info.url:
+                    self._info_cache[str(track_info.url)] = track_info
 
+            if any(t.view_count for t in tracks):
+                tracks.sort(key=lambda x: x.view_count, reverse=True)
+            
+            logger.info(f"Найдено треков для '{query}': {len(tracks)}")
             self._search_cache[cache_key] = tracks
-            logger.info(f"Найдено треков: {len(tracks)}")
             return tracks
             
         except Exception as e:
-            logger.error(f"Ошибка при поиске треков: {e}", exc_info=True)
+            logger.error(f"Ошибка при поиске треков '{query}': {e}", exc_info=True)
             return []
+
+    async def get_search_suggestions(self, query: str) -> list[str]:
+        """
+        Получение поисковых подсказок через Google Suggest API (очень быстро).
+        """
+        if not query.strip():
+            return []
+            
+        url = "https://suggestqueries.google.com/complete/search"
+        params = {
+            "client": "firefox",
+            "ds": "yt",
+            "q": query
+        }
+        
+        try:
+            async with httpx.AsyncClient() as client:
+                response = await client.get(url, params=params, timeout=1.5)
+                if response.status_code == 200:
+                    data = response.json()
+                    suggestions = data[1]
+                    logger.debug(f"Получено подсказок для '{query}': {len(suggestions)}")
+                    return suggestions
+                else:
+                    logger.warning(f"Suggest API вернул статус {response.status_code}")
+        except Exception as e:
+            logger.warning(f"Ошибка при получении подсказок: {e}")
+            
+        return []
+
+    async def search_tracks_fast(self, query: str, max_results: int = 10) -> list[TrackInfo]:
+        """
+        Сверхбыстрый парсинг поисковой выдачи YouTube для автокомплита (в обход медленного yt-dlp).
+        """
+        query = query.strip()
+        if not query:
+            return []
+
+        url = "https://www.youtube.com/results"
+        params = {"search_query": query}
+        headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
+        
+        try:
+            async with httpx.AsyncClient() as client:
+                response = await client.get(url, params=params, headers=headers, timeout=1.5)
+                html = response.text
+                
+            match = re.search(r"var ytInitialData = ({.*?});</script>", html)
+            if not match:
+                return []
+                
+            data = json.loads(match.group(1))
+            contents = data.get("contents", {}).get("twoColumnSearchResultsRenderer", {}).get("primaryContents", {}).get("sectionListRenderer", {}).get("contents", [])
+            
+            if not contents:
+                return []
+                
+            item_section = next((item for item in contents if "itemSectionRenderer" in item), None)
+            if not item_section:
+                return []
+                
+            video_items = item_section["itemSectionRenderer"].get("contents", [])
+            
+            tracks = []
+            for item in video_items:
+                if "videoRenderer" in item:
+                    video = item["videoRenderer"]
+                    title = video.get("title", {}).get("runs", [{}])[0].get("text", "Неизвестно")
+                    video_id = video.get("videoId", "")
+                    if not video_id:
+                        continue
+                        
+                    uploader = video.get("ownerText", {}).get("runs", [{}])[0].get("text", "YouTube")
+                    url = f"https://www.youtube.com/watch?v={video_id}"
+                    
+                    track_info = TrackInfo(
+                        title=self.clean_title(title),
+                        raw_title=title,
+                        url=url,
+                        uploader=uploader,
+                        id=video_id
+                    )
+                    tracks.append(track_info)
+                    
+                    self._info_cache[url] = track_info
+                    
+                    if len(tracks) >= max_results:
+                        break
+                        
+            return tracks
+            
+        except Exception as e:
+            logger.error(f"Ошибка в search_tracks_fast: {e}")
+            return []
+            
     
-    async def get_track_info(self, url: str) -> Optional[dict]:
+    async def get_track_info(self, url: str) -> Optional[TrackInfo]:
         """
         Получение информации о треке по URL.
         
@@ -174,14 +295,15 @@ class MusicService:
                     return None
                 data = data["entries"][0]
 
-            info = {
-                "title": data.get("title") or "Неизвестно",
-                "url": data.get("webpage_url") or data.get("url", ""),
-                "duration": data.get("duration") or 0,
-                "thumbnail": data.get("thumbnail") or "",
-                "uploader": data.get("uploader") or "Неизвестно",
-                "id": data.get("id", ""),
-            }
+            info = TrackInfo(
+                title=data.get("title") or "Неизвестно",
+                raw_title=data.get("title") or "Неизвестно",
+                url=data.get("webpage_url") or data.get("url", ""),
+                duration=data.get("duration") or 0,
+                thumbnail=data.get("thumbnail") or "",
+                uploader=data.get("uploader") or "Неизвестно",
+                id=data.get("id", ""),
+            )
             
             self._info_cache[url] = info
             return info
@@ -190,7 +312,7 @@ class MusicService:
             logger.error(f"Ошибка при получении информации о треке: {e}", exc_info=True)
             return None
 
-    async def get_playlist_info(self, url: str) -> list[dict]:
+    async def get_playlist_info(self, url: str) -> list[TrackInfo]:
         """
         Получение списка треков из плейлиста YouTube.
         
@@ -220,17 +342,18 @@ class MusicService:
             tracks = []
             for entry in data["entries"]:
                 if entry:
-                    track_info = {
-                        "title": entry.get("title") or "Неизвестно",
-                        "url": entry.get("webpage_url") or entry.get("url", ""),
-                        "duration": entry.get("duration") or 0,
-                        "thumbnail": entry.get("thumbnail") or "",
-                        "uploader": entry.get("uploader") or "Неизвестно",
-                        "id": entry.get("id", ""),
-                    }
+                    track_info = TrackInfo(
+                        title=self.clean_title(entry.get("title") or "Неизвестно"),
+                        raw_title=entry.get("title") or "Неизвестно",
+                        url=entry.get("webpage_url") or entry.get("url", ""),
+                        duration=entry.get("duration") or 0,
+                        thumbnail=entry.get("thumbnail") or "",
+                        uploader=entry.get("uploader") or "Неизвестно",
+                        id=entry.get("id", ""),
+                    )
                     tracks.append(track_info)
-                    if track_info["url"]:
-                        self._info_cache[track_info["url"]] = track_info
+                    if track_info.url:
+                        self._info_cache[str(track_info.url)] = track_info
 
             logger.info(f"Загружено треков из плейлиста: {len(tracks)}")
             return tracks
@@ -239,12 +362,13 @@ class MusicService:
             logger.error(f"Ошибка при получении плейлиста: {e}", exc_info=True)
             return []
     
-    async def get_audio_source(self, url: str, start_time: int = 0):
+    async def get_audio_source(self, url: str, start_time: int = 0) -> Optional[tuple[discord.FFmpegPCMAudio, dict]]:
         """
-        Получение аудио-потока для воспроизведения в Discord.
-        """
-        import discord
+        Получение аудио-потока и метаданных для воспроизведения в Discord.
         
+        Returns:
+            Кортеж (discord.FFmpegPCMAudio, data_dict) или None при ошибке.
+        """
         logger.info(f"Получение свежего аудио-потока: {url} (с {start_time}с)")
         
         try:
@@ -268,14 +392,12 @@ class MusicService:
             
             ffmpeg_options = self.FFMPEG_OPTIONS.copy()
             if start_time > 0:
-                # ВАЖНО: Использование -ss в before_options обеспечивает быстрый поиск по входу (input seeking),
-                # что критично для стабильной работы при использовании тяжелых фильтров (loudnorm)
                 ffmpeg_options["before_options"] = f"{ffmpeg_options['before_options']} -ss {int(start_time)}"
                 
             source = discord.FFmpegPCMAudio(audio_url, **ffmpeg_options)
             logger.info(f"Аудио-поток создан (позиция: {int(start_time)}с)")
 
-            return source
+            return source, data
             
         except (yt_dlp.utils.DownloadError, yt_dlp.utils.ExtractorError) as e:
             logger.warning(f"Трек недоступен (приватный или удален): {url}. Ошибка: {e}")
@@ -284,6 +406,40 @@ class MusicService:
             logger.error(f"Ошибка при создании аудио-потока: {e}", exc_info=True)
             return None
     
+    def clean_title(self, title: str) -> str:
+        """
+        Очистка названия трека от лишнего мусора с помощью regex.
+        
+        Удаляет: [Official Video], (Lyrics), HD, 4K и т.д.
+        """
+        if not title:
+            return "Неизвестно"
+            
+        # Паттерны для удаления (регистронезависимые)
+        patterns = [
+            r"(?i)\[.*?\]",                                     # Все в квадратных скобках [HD], [Official]
+            r"(?i)\(.*?视频.*?\)",                               # Китайские метаданные (часто в YouTube Music)
+            r"(?i)\(official (video|audio|lyric|visualizer)\)", # (Official Video), (Official Audio)
+            r"(?i)\(lyrics?\)",                                  # (Lyrics), (Lyric)
+            r"(?i)\(ft\..*?\)",                                  # (ft. Artist) - опционально, но часто лучше оставить
+            r"(?i)\b(official (video|audio|lyric|visualizer)|lyric video|original mix|extended mix|remastered)\b",
+            r"(?i)\b(hd|4k|1080p|hq)\b",                         # Качество
+        ]
+        
+        clean_title = title
+        for pattern in patterns:
+            clean_title = re.sub(pattern, "", clean_title)
+            
+        # Удаляем пустые скобки, если остались
+        clean_title = re.sub(r"\(\s*\)", "", clean_title)
+        clean_title = re.sub(r"\[\s*\]", "", clean_title)
+        
+        # Нормализуем пробелы
+        clean_title = re.sub(r"\s+", " ", clean_title).strip()
+        
+        # Если после очистки ничего не осталось, возвращаем оригинал (на всякий случай)
+        return clean_title if len(clean_title) > 2 else title
+
     def format_duration(self, seconds: int) -> str:
         """
         Форматирование длительности трека.

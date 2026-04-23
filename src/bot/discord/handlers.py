@@ -7,6 +7,7 @@ from discord import Message
 from src.database.models import AllowedChat, Setting
 from src.exceptions import ConfigurationError
 from src.services import HistoryService, LLMService, SettingsService
+from src.bot.discord.views.constants import ui_config
 
 logger = logging.getLogger("discord.handlers")
 
@@ -18,15 +19,7 @@ class MessageHandler:
     взаимодействие с LLM сервисом и отправку ответов.
     """
 
-    # Константы платформы
     PLATFORM: Final[str] = "discord"
-    MAX_MESSAGE_LENGTH: Final[int] = 2000
-    DEFAULT_MEMORY_LIMIT: Final[int] = 10
-
-    # Ключи настроек
-    SETTING_ALLOW_NEW_CHATS: Final[str] = "discord_allow_new_chats"
-    SETTING_ALLOW_DMS: Final[str] = "discord_allow_dms"
-    SETTING_MEMORY_LIMIT: Final[str] = "discord_memory_limit"
 
     def __init__(self, bot: discord.Client) -> None:
         """Инициализация обработчика сообщений.
@@ -45,11 +38,9 @@ class MessageHandler:
         if not await self._should_process_message(message):
             return
 
-        # Проверка прав и настроек доступа
         if not await self._is_allowed_to_respond(message):
             return
 
-        # Подготовка текста (удаление упоминаний)
         user_text = await self._prepare_content(message)
         if not user_text:
             return
@@ -68,16 +59,19 @@ class MessageHandler:
         Returns:
             bool: True если сообщение следует обрабатывать дальше.
         """
-        # Игнорируем сообщения от самого бота
         if message.author.id == getattr(self.bot.user, "id", None):
             return False
 
-        # Игнорируем команды (начинаются с /)
         if message.content.startswith("/"):
             return False
 
-        # Проверяем, включен ли бот глобально
         if not await SettingsService.is_discord_bot_enabled():
+            is_mentioned = self.bot.user in message.mentions or f"<@{self.bot.user.id}>" in message.content
+            if is_mentioned:
+                try:
+                    await message.channel.send(ui_config.msg_bot_disabled)
+                except Exception:
+                    pass
             return False
 
         return True
@@ -98,11 +92,9 @@ class MessageHandler:
         is_dm = isinstance(message.channel, discord.DMChannel)
         is_mentioned = self.bot.user in message.mentions or f"<@{self.bot.user.id}>" in message.content
 
-        # Получаем записи белого списка
         allowed_channel = await AllowedChat.get_or_none(chat_id=chat_id, platform=self.PLATFORM)
         allowed_guild = await AllowedChat.get_or_none(chat_id=guild_id, platform=self.PLATFORM) if guild_id else None
 
-        # Явные запреты имеют приоритет
         if (allowed_channel and not allowed_channel.is_active) or (allowed_guild and not allowed_guild.is_active):
             logger.debug("Discord канал %s или сервер %s явно отключены.", chat_id, guild_id)
             return False
@@ -111,7 +103,6 @@ class MessageHandler:
         is_guild_active = allowed_guild.is_active if allowed_guild else False
         is_in_whitelist = is_channel_active or is_guild_active
 
-        # Если в белом списке - разрешаем (и активируем канал, если активна гильдия)
         if is_in_whitelist:
             if not is_dm and is_guild_active and not is_channel_active:
                 await self._auto_activate_channel(message)
@@ -119,7 +110,6 @@ class MessageHandler:
             respond_everyone = await SettingsService.should_respond_to_everyone()
             return is_dm or is_mentioned or respond_everyone
 
-        # Логика для новых (не в белом списке) чатов
         return await self._check_new_chat_permissions(message, is_dm, is_mentioned)
 
     async def _check_new_chat_permissions(self, message: Message, is_dm: bool, is_mentioned: bool) -> bool:
@@ -133,21 +123,16 @@ class MessageHandler:
         Returns:
             bool: Результат проверки.
         """
-        # 1. Проверка глобального разрешения на новые чаты
-        new_chats_setting = await Setting.get_or_none(key=self.SETTING_ALLOW_NEW_CHATS)
+        new_chats_setting = await Setting.get_or_none(key=ui_config.setting_allow_new_chats)
         allow_new_chats = str(new_chats_setting.value).lower() == "true" if new_chats_setting else False
 
         if not allow_new_chats:
-            # Если новые чаты запрещены, отвечаем только на упоминания/DM и ТОЛЬКО если включен respond_to_everyone
             respond_everyone = await SettingsService.should_respond_to_everyone()
             return (is_mentioned or is_dm) and respond_everyone
 
-        # 2. Если новые чаты разрешены, проверяем специфику DM
         if is_dm:
-            dm_setting = await Setting.get_or_none(key=self.SETTING_ALLOW_DMS)
+            dm_setting = await Setting.get_or_none(key=ui_config.setting_allow_dms)
             return str(dm_setting.value).lower() == "true" if dm_setting else False
-
-        # 3. Для гильдий - либо упоминание, либо настройка "отвечать всем"
         respond_everyone = await SettingsService.should_respond_to_everyone()
         return is_mentioned or respond_everyone
 
@@ -183,7 +168,6 @@ class MessageHandler:
         if not self.bot.user:
             return user_text.strip()
 
-        # Удаляем имя бота
         bot_names = [f"@{self.bot.user.name}"]
         if message.guild and message.guild.me.nick:
             bot_names.append(f"@{message.guild.me.nick}")
@@ -210,11 +194,9 @@ class MessageHandler:
             chat_title = f"{message.guild.name} / {message.channel.name}"
 
         try:
-            # Получаем лимит памяти
-            mem_setting = await Setting.get_or_none(key=self.SETTING_MEMORY_LIMIT)
-            limit = int(mem_setting.value) if mem_setting else self.DEFAULT_MEMORY_LIMIT
+            mem_setting = await Setting.get_or_none(key=ui_config.setting_memory_limit)
+            limit = int(mem_setting.value) if mem_setting else ui_config.default_memory_limit
 
-            # Сохраняем сообщение пользователя
             await HistoryService.add_message(
                 chat_id=chat_id,
                 role="user",
@@ -225,11 +207,9 @@ class MessageHandler:
                 nickname=message.author.name
             )
 
-            # Генерируем ответ
             history = await HistoryService.get_last_messages(chat_id, platform=self.PLATFORM, limit=limit)
             response_text = await LLMService.generate_response(messages=history)
 
-            # Сохраняем ответ ассистента
             await HistoryService.add_message(
                 chat_id=chat_id,
                 role="assistant",
@@ -239,14 +219,13 @@ class MessageHandler:
                 title=chat_title
             )
 
-            # Отправляем ответ
             await self._send_long_message(message.channel, response_text)
 
         except (ValueError, ConfigurationError) as e:
             await self._handle_config_error(message, e)
         except Exception as e:
             logger.exception("Критическая ошибка при генерации ответа LLM: %s", e)
-            await message.channel.send("❌ Произошла внутренняя ошибка при обращении к нейросети")
+            await message.channel.send(ui_config.msg_err_llm_internal)
 
     async def _send_long_message(self, channel: discord.abc.Messageable, text: str) -> None:
         """Отправка длинного сообщения путем разбиения на части.
@@ -255,12 +234,12 @@ class MessageHandler:
             channel: Канал для отправки.
             text: Текст ответа.
         """
-        if len(text) <= self.MAX_MESSAGE_LENGTH:
+        if len(text) <= ui_config.max_message_length:
             await channel.send(text)
             return
 
-        for i in range(0, len(text), self.MAX_MESSAGE_LENGTH):
-            await channel.send(text[i : i + self.MAX_MESSAGE_LENGTH])
+        for i in range(0, len(text), ui_config.max_message_length):
+            await channel.send(text[i : i + ui_config.max_message_length])
 
     async def _handle_config_error(self, message: Message, error: Exception) -> None:
         """Обработка ошибок конфигурации и соединений.
@@ -273,6 +252,6 @@ class MessageHandler:
         logger.warning("Проблема конфигурации в Discord обработчике: %s", error_msg)
 
         if "Отсутствует активное соединение" in error_msg:
-            await message.channel.send("❌ Отсутствует активное соединение с LLM API")
+            await message.channel.send(ui_config.msg_err_llm_connection)
         else:
-            await message.channel.send(f"❌ Ошибка конфигурации: {error_msg}")
+            await message.channel.send(ui_config.msg_err_config_base.format(error_msg=error_msg))

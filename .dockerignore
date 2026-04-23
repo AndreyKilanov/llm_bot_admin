@@ -5,4 +5,9 @@
 __pycache__
 *.pyc
 .roomodes
-.screenshots
+screenshots
+tests
+docs
+*.md
+.gitignore
+.dockerignore

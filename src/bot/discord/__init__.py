@@ -1,3 +1,10 @@
-from src.bot.discord.bot import DiscordBot, discord_bot
+"""Инициализация Discord модуля.
 
-__all__ = ["DiscordBot", "discord_bot",]
+Экспортирует основной класс бота и глобальный экземпляр.
+"""
+
+from .client import DiscordBot
+
+discord_bot = DiscordBot()
+
+__all__ = ["DiscordBot", "discord_bot"]

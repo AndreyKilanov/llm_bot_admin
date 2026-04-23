@@ -7,7 +7,7 @@
 ![Python](https://img.shields.io/badge/Python-3.11+-blue?style=for-the-badge&logo=python)
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.128.0-009688?style=for-the-badge&logo=fastapi)
 ![Aiogram](https://img.shields.io/badge/Aiogram-3.15.0-blue?style=for-the-badge&logo=telegram)
-![Discord.py](https://img.shields.io/badge/Discord.py-2.3.2-blue?style=for-the-badge&logo=discord)
+![Discord.py](https://img.shields.io/badge/Discord.py-2.7.1-blue?style=for-the-badge&logo=discord)
 ![Docker](https://img.shields.io/badge/Docker-20.10+-2496ED?style=for-the-badge&logo=docker)
 ![License](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)
 
@@ -25,8 +25,9 @@
 - **Управление историей**: Команда `/clear` в Telegram для очистки истории текущего чата.
 - **Интеллектуальная фильтрация**: Ответы только при упоминании (mention) в группах или в разрешенных каналах.
 - **Никнеймы**: Сохранение имен пользователей в истории для более точных ответов LLM.
-- **Музыкальный плеер (Discord)**: Полнофункциональный проигрыватель с поиском YouTube (до 100 результатов), поддержкой плейлистов, пагинацией очереди и поиска, интерактивным UI, автоматической очисткой и логикой перезапуска.
-- **Справка**: Команда `/help` в Discord для быстрого доступа к списку всех команд.
+- **Музыкальный плеер (Discord)**: Полнофункциональный проигрыватель с поиском YouTube, поддержкой плейлистов, пагинацией, интерактивным 3-рядным UI (Lyrics, Shuffle, Volume), автоматической очисткой и логикой перезапуска.
+- **Тексты песен**: Интегрированный сервис получения текстов песен прямо в Discord.
+- **Справка**: Команда `/help` в Discord для быстрого доступа к списку всех команд и функций пульта.
 
 ### 🛠 Панель управления (Admin Panel)
 
@@ -122,13 +123,17 @@ docker compose up -d --build
 
 | Переменная | Описание |
 |------------|----------|
+| `ENABLE_TELEGRAM` | Включить/выключить запуск Telegram бота | `true` |
+| `ENABLE_DISCORD` | Включить/выключить запуск Discord бота | `true` |
 | `BOT_TOKEN` | Токен Telegram бота |
 | `DISCORD_BOT_TOKEN` | Токен Discord бота |
 | `BASE_WEBHOOK_URL` | Публичный HTTPS адрес (для Telegram Webhook) |
-| `ADMIN_USERNAME` | Логин администратора |
-| `ADMIN_PASSWORD` | Пароль администратора |
-| `TELEGRAM_ADMIN_IDS` | ID Telegram пользователей для управления промптами |
-| `HISTORY_SIZE` | Размер истории по умолчанию |
+| `ADMIN_USERNAME` | Логин администратора для доступа к панели |
+| `ADMIN_PASSWORD` | Пароль администратора для доступа к панели |
+| `OPENROUTER_API_KEY` | API ключ OpenRouter (по умолчанию) |
+| `TELEGRAM_ADMIN_IDS` | ID Telegram пользователей для управления промптами через бот |
+| `HISTORY_SIZE` | Размер истории контекста по умолчанию (сообщений) | `10` |
+| `SYSTEM_PROMPT` | Начальный системный промпт для LLM |
 
 ---
 

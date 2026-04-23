@@ -1,8 +1,11 @@
-from config import settings
 from src.database.models import LLMConnection, LLMPrompt
 from src.exceptions import ConfigurationError
 from src.llm import LLMClient
 from src.logger import log_function
+from src.schemas import ChatMessagePayload
+from src.logger import get_logger
+from config import settings
+from src.services.settings_service import SettingsService
 
 
 class LLMService:
@@ -38,7 +41,6 @@ class LLMService:
                 base_url = provider_info  # Fallback for old simple strings if they somehow exist
 
         if not base_url:
-            from src.logger import get_logger
             get_logger("llm_service").warning(
                 f"Connection check failed: no base_url and no default for provider '{conn.provider}'"
             )
@@ -363,8 +365,6 @@ class LLMService:
         Returns:
             Текст системного промпта.
         """
-        from src.services.settings_service import SettingsService
-
         active_conn = await LLMService.get_active_connection()
         if active_conn:
             db_prompt = await LLMService.get_active_prompt(active_conn.id)
@@ -375,7 +375,7 @@ class LLMService:
 
     @staticmethod
     @log_function
-    async def generate_response(messages: list[dict], system_prompt: str | None = None) -> str:
+    async def generate_response(messages: list[ChatMessagePayload], system_prompt: str | None = None) -> str:
         """Генерирует ответ от LLM, используя активное подключение или настройки по умолчанию.
 
         Args:
@@ -408,10 +408,11 @@ class LLMService:
         if not base_url:
             raise ConfigurationError(f"Base URL not found for provider '{provider}'")
 
-        full_messages = [{"role": "system", "content": system_prompt}] + messages
+        
+        payload_messages = [ChatMessagePayload(role="system", content=system_prompt)] + messages
 
         return await LLMClient.get_completion(
-            messages=full_messages,
+            messages=payload_messages,
             api_key=api_key,
             model=model,
             base_url=base_url

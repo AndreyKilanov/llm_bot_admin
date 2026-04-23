@@ -1,6 +1,9 @@
+import logging
 from config import Settings
 from src.database import Setting
 from src.logger import log_function
+
+logger = logging.getLogger("settings.service")
 
 
 KEY_SYSTEM_PROMPT = "system_prompt"
@@ -31,7 +34,7 @@ class SettingsService:
         setting = await Setting.get_or_none(key="discord_music_enabled")
         if setting:
             return str(setting.value).lower() == "true"
-        return True  # По умолчанию включен
+        return True
 
     @staticmethod
     @log_function
@@ -46,13 +49,15 @@ class SettingsService:
         return 10
 
     @staticmethod
-    @log_function
     async def is_discord_bot_enabled() -> bool:
         """Проверяет, включен ли Discord бот в принципе."""
         setting = await Setting.get_or_none(key="discord_bot_enabled")
         if setting:
-            return str(setting.value).lower() == "true"
-        return False  # По умолчанию выключен
+            val = str(setting.value).lower() == "true"
+            logger.info("Проверка настройки 'discord_bot_enabled' из БД: %s", val)
+            return val
+        
+        return False
 
     @staticmethod
     @log_function
@@ -61,4 +66,4 @@ class SettingsService:
         setting = await Setting.get_or_none(key="discord_respond_everyone")
         if setting:
             return str(setting.value).lower() == "true"
-        return False  # По умолчанию только на упоминания
+        return False

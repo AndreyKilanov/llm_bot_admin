@@ -4,14 +4,11 @@ import asyncio
 import logging
 from typing import TYPE_CHECKING, Final
 
-import discord
 
-if TYPE_CHECKING:
-    from discord import VoiceClient, VoiceChannel, Client
+from discord import VoiceClient, VoiceChannel, Client
+from src.bot.discord.views.constants import ui_config
 
 logger = logging.getLogger("discord.music_player.voice")
-
-CONNECT_TIMEOUT: Final[float] = 20.0
 
 
 class VoiceHandler:
@@ -28,6 +25,8 @@ class VoiceHandler:
         self.bot = bot
         self.manual_skip: bool = False
         self._voice_channel: VoiceChannel | None = None
+        self._intentional_disconnect: bool = False
+        self._is_connecting: bool = False
 
     @property
     def voice_client(self) -> VoiceClient | None:
@@ -91,12 +90,13 @@ class VoiceHandler:
                 try:
                     await vc.disconnect(force=True)
                     await asyncio.sleep(0.5)
-                except:
+                except Exception:
                     pass
 
+        self._is_connecting = True
         try:
             logger.info("Подключение к голосовому каналу '%s' сервера %d...", channel.name, self.guild_id)
-            await channel.connect(timeout=CONNECT_TIMEOUT, reconnect=True)
+            await channel.connect(timeout=ui_config.voice_connect_timeout, reconnect=True)
             return True
         except Exception as e:
             logger.error("Ошибка подключения на сервере %d: %s", self.guild_id, e)
@@ -104,12 +104,15 @@ class VoiceHandler:
             if current_vc:
                 try:
                     await current_vc.disconnect(force=True)
-                except:
+                except Exception:
                     pass
             return False
+        finally:
+            self._is_connecting = False
 
     async def disconnect(self) -> None:
-        """Отключиться от голосового канала."""
+        """Отключиться от голосового канала (штатное отключение)."""
+        self._intentional_disconnect = True
         vc = self.voice_client
         if vc and vc.is_connected():
             await vc.disconnect()
@@ -123,3 +126,16 @@ class VoiceHandler:
             self.manual_skip = True
             vc.stop()
             logger.debug("Воспроизведение VoiceClient остановлено принудительно")
+
+    def is_alone(self) -> bool:
+        """Проверить, остался ли бот один в голосовом канале.
+        
+        Returns:
+            True, если в канале нет других пользователей (кроме ботов).
+        """
+        vc = self.voice_client
+        if not vc or not vc.channel:
+            return False
+            
+        human_members = [m for m in vc.channel.members if not m.bot]
+        return len(human_members) == 0

@@ -6,19 +6,8 @@ from discord.ext import commands
 from src.services import music_service
 
 from .base import BaseMusicView
-from .constants import (
-    DEFAULT_VIEW_TIMEOUT,
-    EMOJI_PLAY,
-    LABEL_NEXT_PAGE,
-    LABEL_PREV_PAGE,
-    MSG_QUEUE_TITLE,
-    MSG_QUEUE_TOTAL,
-    MSG_QUEUE_EMPTY,
-    MSG_QUEUE_FOOTER,
-    MSG_TRACK_INFO,
-    MSG_UNKNOWN,
-    INVISIBLE_SPACER,
-)
+from .constants import ui_config
+from .emoji_manager import emoji_manager
 
 if TYPE_CHECKING:
     from src.bot.discord.player import MusicPlayer
@@ -43,7 +32,7 @@ class QueuePaginationView(BaseMusicView):
         self,
         player: "MusicPlayer",
         ctx: commands.Context,
-        items_per_page: int = 10,
+        items_per_page: int = ui_config.items_per_page,
     ) -> None:
         """Инициализация пагинации очереди.
 
@@ -52,7 +41,7 @@ class QueuePaginationView(BaseMusicView):
             ctx: Контекст команды.
             items_per_page: Количество треков на страницу. По умолчанию 10.
         """
-        super().__init__(timeout=DEFAULT_VIEW_TIMEOUT)
+        super().__init__(timeout=ui_config.default_view_timeout)
         self.player: "MusicPlayer" = player
         self.ctx: commands.Context = ctx
         self.items_per_page: int = items_per_page
@@ -108,8 +97,8 @@ class QueuePaginationView(BaseMusicView):
         idx_width = len(str(total_tracks))
 
         for i, track in enumerate(page_tracks, start=start_idx):
-            title = str(track.get('title') or 'Unknown')[:80]
-            uploader = str(track.get('uploader') or 'Unknown')[:40]
+            title = str(track.title or 'Unknown')[:80]
+            uploader = str(track.uploader or 'Unknown')[:40]
             label = f"{i + 1:>{idx_width}}. {title}"
             description = uploader
 
@@ -123,7 +112,7 @@ class QueuePaginationView(BaseMusicView):
             ))
 
         if options:
-            placeholder = f"Выберите трек для воспроизведения...{INVISIBLE_SPACER}"
+            placeholder = f"{ui_config.placeholder_queue_select}{ui_config.invisible_spacer}"
             select = discord.ui.Select(
                 placeholder=placeholder[:100],
                 options=options,
@@ -140,8 +129,8 @@ class QueuePaginationView(BaseMusicView):
         if await self.player.play_at_index(index):
             await self._update_view(interaction)
         else:
-            from .constants import EMOJI_ERROR
-            await interaction.followup.send(f"{EMOJI_ERROR} Не удалось запустить трек.", ephemeral=True)
+            e = emoji_manager.get_all()
+            await interaction.followup.send(f"{e.error} {ui_config.msg_err_play_fail}", ephemeral=True)
 
     def create_embed(self) -> discord.Embed:
         """Создает Embed для текущей страницы.
@@ -150,13 +139,13 @@ class QueuePaginationView(BaseMusicView):
             discord.Embed: Сформированный Embed очереди.
         """
         embed = discord.Embed(
-            title=MSG_QUEUE_TITLE,
-            description=MSG_QUEUE_TOTAL.format(total=len(self.player.queue)),
+            title=ui_config.msg_queue_title,
+            description=ui_config.msg_queue_desc.format(total=len(self.player.queue)),
             color=discord.Color.green(),
         )
 
         if not self.player.queue:
-            embed.description = MSG_QUEUE_EMPTY
+            embed.description = ui_config.msg_queue_empty
             return embed
 
         start_idx = self.current_page * self.items_per_page
@@ -166,26 +155,31 @@ class QueuePaginationView(BaseMusicView):
         total_tracks = len(self.player.queue)
         idx_width = len(str(total_tracks))
 
+        e = emoji_manager.get_all()
         for i, track in enumerate(page_tracks, start=start_idx):
             is_current = i == self.player.current_index
-            prefix = f"{EMOJI_PLAY} " if is_current else ""
-            duration = music_service.format_duration(track.get("duration") or 0)
-            title = track.get("title", MSG_UNKNOWN)[:80]
-            uploader = track.get("uploader", MSG_UNKNOWN)
+            prefix = f"{e.play} " if is_current else ""
+            duration = music_service.format_duration(track.duration or 0)
+            title = str(track.title or ui_config.msg_unknown)[:80]
+            uploader = track.uploader or ui_config.msg_unknown
             embed.add_field(
                 name=f"{prefix}{i + 1:>{idx_width}}. {title}",
-                value=MSG_TRACK_INFO.format(uploader=uploader, duration=duration),
+                value=f"{uploader} | {duration}",
                 inline=False,
             )
 
+        footer_text = ui_config.msg_queue_footer.format(
+            current=self.current_page + 1, 
+            total=self.total_pages
+        )
         embed.set_footer(
-            text=f"{MSG_QUEUE_FOOTER.format(current=self.current_page + 1, pages=self.total_pages)}{INVISIBLE_SPACER}"
+            text=f"{footer_text}{ui_config.invisible_spacer}"
         )
         return embed
 
     @discord.ui.button(
-        label=LABEL_PREV_PAGE,
-        style=discord.ButtonStyle.secondary,
+        label=ui_config.label_prev_page,
+        style=discord.ButtonStyle(ui_config.style_secondary),
         custom_id=ID_PREV_PAGE,
     )
     async def prev_button(
@@ -203,8 +197,8 @@ class QueuePaginationView(BaseMusicView):
             await self._update_view(interaction)
 
     @discord.ui.button(
-        label=LABEL_NEXT_PAGE,
-        style=discord.ButtonStyle.secondary,
+        label=ui_config.label_next_page,
+        style=discord.ButtonStyle(ui_config.style_secondary),
         custom_id=ID_NEXT_PAGE,
     )
     async def next_button(

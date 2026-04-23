@@ -41,18 +41,12 @@ main {
     max-width: 420px;
     padding: 2.5rem;
     position: relative;
-    padding-bottom: 3.5rem;
 }
 
 .login-error {
-    position: absolute;
-    bottom: 1.25rem;
-    left: 0;
-    right: 0;
     text-align: center;
     color: var(--danger);
     font-size: 0.9rem;
-    pointer-events: none;
     animation: fadeIn 0.3s ease-out;
 }
 

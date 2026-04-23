@@ -2,6 +2,8 @@ import asyncio
 import logging
 import httpx
 
+from src.schemas import ChatMessagePayload
+
 logger = logging.getLogger(__name__)
 
 
@@ -15,7 +17,7 @@ class LLMClient:
     @classmethod
     async def get_completion(
             cls,
-            messages: list[dict[str, str]],
+            messages: list[ChatMessagePayload],
             api_key: str,
             model: str,
             base_url: str,
@@ -23,7 +25,7 @@ class LLMClient:
         """Выполняет запрос к LLM API с повторными попытками.
         
         Args:
-            messages: Список сообщений в формате [{'role': '...', 'content': '...'}]
+            messages: Список сообщений (ChatMessagePayload)
             api_key: Ключ API
             model: Название модели
             base_url: Базовый URL API (обязателен)
@@ -32,8 +34,8 @@ class LLMClient:
             Текст ответа ассистента.
         """
         filtered_messages = [
-            {"role": m["role"], "content": m["content"]} 
-            for m in messages if m.get("content")
+            {"role": m.role, "content": m.content} 
+            for m in messages if m.content
         ]
         if not filtered_messages:
             raise ValueError("No messages to send")
