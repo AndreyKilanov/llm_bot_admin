@@ -7,9 +7,12 @@ from src.web.admin import router, verify_session, verify_api_session
 from src.database.models import User, AllowedChat, Setting, LLMConnection, LLMPrompt
 from src.services.user_service import UserService
 
+from starlette.middleware.sessions import SessionMiddleware
+
 @pytest.fixture
 def test_app():
     app = FastAPI()
+    app.add_middleware(SessionMiddleware, secret_key="test-secret-key", session_cookie="admin_session")
     app.include_router(router)
     
     # Override dependencies to bypass auth for most tests
@@ -52,7 +55,7 @@ async def test_login_post_success(test_app):
             follow_redirects=False
         )
         assert response.status_code == 303
-        assert "admin_user" in response.cookies
+        assert "admin_session" in response.cookies
 
 
 @pytest.mark.asyncio
@@ -70,11 +73,11 @@ async def test_login_post_failure(test_app):
 @pytest.mark.asyncio
 async def test_logout(test_app):
     test_app.dependency_overrides = {}
-    async with AsyncClient(transport=ASGITransport(app=test_app), base_url="http://test", cookies={"admin_user": "admin"}) as client:
+    async with AsyncClient(transport=ASGITransport(app=test_app), base_url="http://test", cookies={"admin_session": "any-session"}) as client:
         response = await client.get("/admin/logout", follow_redirects=False)
         assert response.status_code == 303
         # Cookie should be deleted or expired
-        assert not response.cookies.get("admin_user") or response.cookies.get("admin_user") == '""'
+        assert not response.cookies.get("admin_session") or response.cookies.get("admin_session") == '""'
 
 
 @pytest.mark.asyncio
