@@ -473,7 +473,7 @@ class MusicPlayer:
         self.paused_duration = 0.0
 
     def _cancel_tasks(self) -> None:
-        for task in [self._disconnect_task, self._playlist_clear_task]:
+        for task in [self._disconnect_task, self._playlist_clear_task, self._preload_task]:
             if task:
                 task.cancel()
 
