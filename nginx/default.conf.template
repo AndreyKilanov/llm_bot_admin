@@ -1,6 +1,16 @@
 server {
     listen ${NGINX_INTERNAL_PORT};
+    listen 443 ssl default_server;
     server_name _;
+
+    # Пути к самоподписанным SSL-сертификатам
+    ssl_certificate /etc/nginx/ssl/nginx.crt;
+    ssl_certificate_key /etc/nginx/ssl/nginx.key;
+
+    # Настройки безопасности SSL/TLS
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_ciphers HIGH:!aNULL:!MD5;
+    ssl_prefer_server_ciphers on;
 
     client_max_body_size 10m;
 
