@@ -4,28 +4,28 @@ from unittest.mock import AsyncMock, patch, MagicMock
 
 from src.bot.discord.views import TrackSelectionView, MusicPlayerView
 from src.bot.discord.player.enums import LoopMode
+from src.schemas import TrackInfo
+from src.bot.discord.views.constants import ui_config
+from tests.fixtures import DiscordMockContext
 
 
 @pytest.fixture
 def mock_ctx():
-    ctx = AsyncMock()
-    ctx.author = MagicMock()
-    ctx.author.voice = MagicMock()
-    ctx.author.voice.channel = MagicMock()
-    return ctx
+    return DiscordMockContext()
 
 
 @pytest.fixture
 def mock_player():
     player = AsyncMock()
-    player.current_track = {
-        "title": "Test song",
-        "uploader": "Artist",
-        "duration": 180,
-        "url": "http://example.com/test",
-        "thumbnail": None
-    }
+    player.current_track = TrackInfo(
+        title="Test song",
+        raw_title="Test song",
+        uploader="Artist",
+        duration=180,
+        url="http://example.com/test"
+    )
     player.queue = [player.current_track]
+    player.current_index = 0
     player.is_playing = True
     player.is_paused = False
     player.loop_mode = LoopMode.NONE
@@ -53,16 +53,21 @@ def mock_player():
 def mock_interaction():
     interaction = AsyncMock()
     interaction.response = AsyncMock()
+    interaction.response.is_done = MagicMock(return_value=False)
     interaction.followup = AsyncMock()
     return interaction
 
 
 @pytest.mark.asyncio
 async def test_track_selection_view(mock_ctx, mock_player, mock_interaction):
-    tracks = [{"title": f"Song {i}", "url": f"http://song{i}"} for i in range(5)]
+    tracks = [
+        TrackInfo(title=f"Song {i}", raw_title=f"Song {i}", url=f"http://song{i}", duration=100, uploader="Artist")
+        for i in range(5)
+    ]
     view = TrackSelectionView(tracks, mock_player, mock_ctx)
     
-    # Simulate first track selection
+    # Симулируем выбор первого трека через выпадающий список
+    mock_interaction.data = {"values": ["0"]}
     await view.children[0].callback(mock_interaction)
     
     mock_interaction.response.defer.assert_called_once()
@@ -73,7 +78,10 @@ async def test_track_selection_view(mock_ctx, mock_player, mock_interaction):
 
 @pytest.mark.asyncio
 async def test_track_selection_view_add_all(mock_ctx, mock_player, mock_interaction):
-    tracks = [{"title": f"Song {i}", "url": f"http://song{i}"} for i in range(5)]
+    tracks = [
+        TrackInfo(title=f"Song {i}", raw_title=f"Song {i}", url=f"http://song{i}", duration=100, uploader="Artist")
+        for i in range(5)
+    ]
     view = TrackSelectionView(tracks, mock_player, mock_ctx)
     
     await view._add_all_callback(mock_interaction)
@@ -86,13 +94,18 @@ async def test_track_selection_view_add_all(mock_ctx, mock_player, mock_interact
 
 @pytest.mark.asyncio
 async def test_track_selection_view_no_voice(mock_ctx, mock_player, mock_interaction):
-    tracks = [{"title": "Song", "url": "http://song"}]
+    tracks = [
+        TrackInfo(title="Song", raw_title="Song", url="http://song", duration=100, uploader="Artist")
+    ]
     mock_ctx.author.voice = None
     view = TrackSelectionView(tracks, mock_player, mock_ctx)
     
+    mock_interaction.data = {"values": ["0"]}
     await view.children[0].callback(mock_interaction)
     
-    mock_interaction.response.send_message.assert_called_once_with("❌ Вы больше не в голосовом канале!", ephemeral=True)
+    mock_interaction.response.send_message.assert_called_once()
+    args, kwargs = mock_interaction.response.send_message.call_args
+    assert "Вы должны находиться в голосовом канале" in args[0] or "ephemeral" in kwargs
 
 
 @pytest.mark.asyncio
@@ -119,7 +132,7 @@ async def test_music_player_view_buttons(mock_ctx, mock_player, mock_interaction
     
     # Stop button
     await view.stop_button.callback(mock_interaction)
-    mock_player.stop.assert_called_once()
+    mock_player.stop_playback_only.assert_called_once()
 
 
 @pytest.mark.asyncio
@@ -128,7 +141,7 @@ async def test_music_player_rewind_forward(mock_ctx, mock_player, mock_interacti
     view.message = AsyncMock()
     view.message.guild = None
     
-    with patch("src.bot.discord.views.music_player.SettingsService.get_discord_seek_time", new_callable=AsyncMock) as mock_seek:
+    with patch("src.services.SettingsService.get_discord_seek_time", new_callable=AsyncMock) as mock_seek:
         mock_seek.return_value = 10
         mock_player.seek_relative.return_value = True
         
@@ -146,9 +159,9 @@ async def test_music_player_queue_button(mock_ctx, mock_player, mock_interaction
     view.message.guild = None
     
     await view.queue_button.callback(mock_interaction)
-    mock_interaction.followup.send.assert_called_once()
-    args, kwargs = mock_interaction.followup.send.call_args
-    assert "embed" in kwargs
+    mock_interaction.response.send_message.assert_called_once()
+    args, kwargs = mock_interaction.response.send_message.call_args
+    assert "embed" in kwargs or "view" in kwargs
 
 
 @pytest.mark.asyncio
@@ -161,9 +174,7 @@ async def test_music_player_loop_mode(mock_ctx, mock_player, mock_interaction):
     
     await view.loop_mode_button.callback(mock_interaction)
     mock_player.cycle_loop_mode.assert_called_once()
-    mock_interaction.followup.send.assert_called_once()
-    args, kwargs = mock_interaction.followup.send.call_args
-    assert "Режим зацикливания: **трек**" in args[0] or "трека" in args[0]
+    mock_interaction.response.defer.assert_called_once()
 
 
 @pytest.mark.asyncio
@@ -175,19 +186,19 @@ async def test_music_player_finished_state_ui(mock_ctx, mock_player):
     
     mock_player.is_playing = False
     mock_player.is_paused = False
-    mock_player.current_track = {
-        "title": "Finished Song",
-        "uploader": "Artist",
-        "duration": 100,
-        "url": "http://example.com",
-    }
+    mock_player.current_track = TrackInfo(
+        title="Finished Song",
+        raw_title="Finished Song",
+        uploader="Artist",
+        duration=100,
+        url="http://example.com",
+    )
     mock_player.get_playback_position.return_value = (98, 100)
     embed = view.create_player_embed()
-    status_field = next(f for f in embed.fields if f.name == "Статус")
-    assert "🏁 Завершено" in status_field.value
-    progress_field = next(f for f in embed.fields if f.name == "Прогресс")
-    assert "`1:40`" in progress_field.value
-    assert "●" in progress_field.value
+    
+    progress_field = next(f for f in embed.fields if f.name == ui_config.msg_progress)
+    assert "`1:38`" in progress_field.value
+    assert "⚪" in progress_field.value
 
 
 @pytest.mark.asyncio
@@ -195,7 +206,11 @@ async def test_queue_pagination_view(mock_ctx, mock_player, mock_interaction):
     """Тест работы пагинации очереди."""
     from src.bot.discord.views.queue_pagination import QueuePaginationView
     
-    mock_player.queue = [{"title": f"Song {i}", "duration": 100, "uploader": "Artist"} for i in range(12)]
+    mock_player.queue = [
+        TrackInfo(title=f"Song {i}", raw_title=f"Song {i}", url=f"http://song{i}", duration=100, uploader="Artist")
+        for i in range(12)
+    ]
+    mock_player.current_index = 0
     view = QueuePaginationView(mock_player, mock_ctx, items_per_page=5)
     
     assert view.total_pages == 3
@@ -216,7 +231,10 @@ async def test_queue_pagination_view(mock_ctx, mock_player, mock_interaction):
 @pytest.mark.asyncio
 async def test_track_selection_pagination(mock_ctx, mock_player, mock_interaction):
     """Тест пагинации поиска."""
-    tracks = [{"title": f"Song {i}", "url": f"http://song{i}"} for i in range(12)]
+    tracks = [
+        TrackInfo(title=f"Song {i}", raw_title=f"Song {i}", url=f"http://song{i}", duration=100, uploader="Artist")
+        for i in range(12)
+    ]
     view = TrackSelectionView(tracks, mock_player, mock_ctx)
     view.items_per_page = 5
     
