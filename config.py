@@ -38,6 +38,8 @@ class Settings(BaseSettings):
     # Server
     HOST: str = "0.0.0.0"
     PORT: int = 8000
+    SECRET_KEY: str = "super-secret-key-change-in-production"
+    COOKIE_SECURE: bool = False
 
     # Database
     DATABASE_PATH: str = "data/bot.db"
