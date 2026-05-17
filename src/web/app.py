@@ -9,6 +9,7 @@ from aiogram.types import Update
 from fastapi import FastAPI, Request, Response
 from fastapi.staticfiles import StaticFiles
 from starlette.responses import JSONResponse
+from starlette.middleware.sessions import SessionMiddleware
 from tortoise import Tortoise
 from tortoise.exceptions import DoesNotExist, OperationalError, IntegrityError
 
@@ -69,6 +70,25 @@ def create_app(bot: Optional[Bot] = None, dp: Any = None, use_webhook: bool = Fa
         logger.info("Tortoise ORM соединения закрыты")
 
     app = FastAPI(lifespan=lifespan)
+    
+    secret_key = settings.SECRET_KEY
+    if not secret_key or secret_key == "super-secret-key-change-in-production":
+        import secrets
+        secret_key = secrets.token_hex(32)
+        logging.getLogger("bot.startup").warning(
+            "ВНИМАНИЕ: Используется автоматически сгенерированный случайный SECRET_KEY для сессий. "
+            "Сессии будут сброшены при перезапуске сервера. Установите SECRET_KEY в .env для постоянного хранения сессий!"
+        )
+        
+    app.add_middleware(
+        SessionMiddleware,
+        secret_key=secret_key,
+        session_cookie="admin_session",
+        max_age=3600 * 24, # 24 часа
+        same_site="lax",
+        https_only=settings.COOKIE_SECURE
+    )
+    
     static_path = Path(__file__).parent / "static"
     app.mount("/static", StaticFiles(directory=str(static_path)), name="static")
     
