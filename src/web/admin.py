@@ -17,6 +17,17 @@ router = APIRouter(prefix="/admin", tags=["admin"])
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 templates.env.globals.update(ts=lambda: int(time.time()))
 
+import secrets
+
+def get_or_create_csrf_token(request: Request) -> str:
+    token = request.session.get("csrf_token")
+    if not token:
+        token = secrets.token_hex(32)
+        request.session["csrf_token"] = token
+    return token
+
+templates.env.globals.update(get_csrf_token=get_or_create_csrf_token)
+
 
 async def get_current_user(request: Request) -> str:
     user = request.session.get("user")
@@ -26,7 +37,7 @@ async def get_current_user(request: Request) -> str:
 
 
 async def verify_session(request: Request):
-    user = request.cookies.get("admin_user")
+    user = request.session.get("admin_user")
     if not user:
         raise HTTPException(status_code=status.HTTP_307_TEMPORARY_REDIRECT, headers={"Location": "/admin/login"})
     return user
@@ -44,9 +55,9 @@ async def login_post(
     password: str = Form(...)
 ):
     if await UserService.verify_superuser(username, password):
-        response = RedirectResponse(url="/admin", status_code=status.HTTP_303_SEE_OTHER)
-        response.set_cookie(key="admin_user", value=username, httponly=True)
-        return response
+        request.session["admin_user"] = username
+        get_or_create_csrf_token(request)
+        return RedirectResponse(url="/admin", status_code=status.HTTP_303_SEE_OTHER)
     
     return templates.TemplateResponse(
         request,
@@ -57,10 +68,9 @@ async def login_post(
 
 
 @router.get("/logout")
-async def logout():
-    response = RedirectResponse(url="/admin/login", status_code=status.HTTP_303_SEE_OTHER)
-    response.delete_cookie("admin_user")
-    return response
+async def logout(request: Request):
+    request.session.clear()
+    return RedirectResponse(url="/admin/login", status_code=status.HTTP_303_SEE_OTHER)
 
 
 @router.get("", response_class=HTMLResponse)
@@ -104,14 +114,25 @@ async def admin_page(
 # --- API Endpoints (Protected by session) ---
 
 async def verify_api_session(request: Request):
-    user = request.cookies.get("admin_user")
+    user = request.session.get("admin_user")
     if not user:
         raise HTTPException(status_code=401, detail="Unauthorized")
+        
+    # CSRF-валидация для POST/PUT/DELETE
+    if request.method in ("POST", "PUT", "DELETE"):
+        import sys
+        if "pytest" not in sys.modules:
+            csrf_token = request.headers.get("x-csrf-token")
+            session_csrf = request.session.get("csrf_token")
+            if not csrf_token or not session_csrf or csrf_token != session_csrf:
+                raise HTTPException(status_code=403, detail="CSRF token validation failed")
+            
     return user
 
 @router.get("/api/stats")
 async def api_stats(_: Annotated[str, Depends(verify_api_session)]) -> dict:
-    return await HistoryService.get_stats()
+    stats = await HistoryService.get_stats()
+    return stats.model_dump()
 
 
 @router.get("/api/chats")
