@@ -11,6 +11,8 @@ class FakeGuild:
         self.id = guild_id
         self.name = f"Guild {guild_id}"
         self.voice_client = None
+        self.me = MagicMock()
+        self.me.voice = None
 
 class FakeVoiceClient:
     def __init__(self, guild_id):
@@ -88,7 +90,9 @@ def mock_voice_channel():
 def discord_player(mock_bot_fake):
     return MusicPlayer(guild_id=123, bot=mock_bot_fake)
 
-class DiscordMockContext:
+from discord.ext import commands
+
+class DiscordMockContext(commands.Context):
     def __init__(self):
         self.bot = MagicMock()
         self.guild = MagicMock()
