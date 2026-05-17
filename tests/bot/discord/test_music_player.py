@@ -1,11 +1,17 @@
 import pytest
+import discord
 from unittest.mock import AsyncMock, patch, MagicMock
 from src.bot.discord.player.enums import LoopMode
+from src.schemas import TrackInfo
+
+class FakeAudioSource(discord.AudioSource):
+    def read(self) -> bytes:
+        return b""
 
 @pytest.mark.asyncio
 async def test_add_to_queue(discord_player):
-    track1 = {"title": "Track 1", "url": "url1"}
-    track2 = {"title": "Track 2", "url": "url2"}
+    track1 = TrackInfo(title="Track 1", raw_title="Track 1", url="https://url1.com")
+    track2 = TrackInfo(title="Track 2", raw_title="Track 2", url="https://url2.com")
     
     discord_player.add_to_queue([track1, track2])
     
@@ -20,7 +26,7 @@ def test_get_queue_info_empty(discord_player):
     assert info["tracks"] == []
 
 def test_get_queue_info(discord_player):
-    track1 = {"title": "Track 1", "url": "url1"}
+    track1 = TrackInfo(title="Track 1", raw_title="Track 1", url="https://url1.com")
     discord_player.add_to_queue([track1])
     discord_player.current_index = 0
     
@@ -110,11 +116,15 @@ async def test_loop_mode_logic(discord_player, mock_voice_channel):
     discord_player.bot.mock_guild.voice_client = vc
     await discord_player.connect(mock_voice_channel)
     
-    tracks = [{"title": f"T{i}", "url": f"u{i}", "duration": 100, "uploader": "U"} for i in range(3)]
+    tracks = [
+        TrackInfo(title=f"T{i}", raw_title=f"T{i}", url=f"https://u{i}.com", duration=100, uploader="U")
+        for i in range(3)
+    ]
     discord_player.add_to_queue(tracks)
     
-    with patch("src.bot.discord.player.player.music_service.get_audio_source", new_callable=AsyncMock) as mock_get_source:
-        mock_get_source.return_value = MagicMock()
+    with patch("src.bot.discord.player.player.music_service.get_audio_source", new_callable=AsyncMock) as mock_get_source, \
+         patch("src.services.SettingsService.is_discord_bot_enabled", new_callable=AsyncMock, return_value=True):
+        mock_get_source.return_value = (FakeAudioSource(), {"duration": 100})
         await discord_player.play_from_start()
         assert discord_player.current_index == 0
         
@@ -141,19 +151,19 @@ async def test_seek_relative(discord_player, mock_voice_channel):
     discord_player.bot.mock_guild.voice_client = vc
     await discord_player.connect(mock_voice_channel)
     
-    track = {"title": "T", "url": "u", "duration": 100, "uploader": "U"}
+    track = TrackInfo(title="T", raw_title="T", url="https://u.com", duration=100, uploader="U")
     discord_player.add_to_queue([track])
     
-    with patch("src.bot.discord.player.player.music_service.get_audio_source", new_callable=AsyncMock) as mock_get_source:
-        mock_get_source.return_value = MagicMock()
+    with patch("src.bot.discord.player.player.music_service.get_audio_source", new_callable=AsyncMock) as mock_get_source, \
+         patch("src.services.SettingsService.is_discord_bot_enabled", new_callable=AsyncMock, return_value=True):
+        mock_get_source.return_value = (FakeAudioSource(), {"duration": 100})
         await discord_player.play_from_start()
         
         discord_player.start_time = 1000
         with patch("time.time", return_value=1050):
             result = await discord_player.seek_relative(10)
             assert result is True
-            mock_get_source.assert_called_with("u", start_time=60)
-
+            mock_get_source.assert_called_with("https://u.com", start_time=60)
 
 @pytest.mark.asyncio
 async def test_auto_play_next_retains_current_track(discord_player, mock_voice_channel):
@@ -163,7 +173,7 @@ async def test_auto_play_next_retains_current_track(discord_player, mock_voice_c
     discord_player.bot.mock_guild.voice_client = vc
     await discord_player.connect(mock_voice_channel)
     
-    track = {"title": "Last Track", "url": "url", "duration": 100, "uploader": "U"}
+    track = TrackInfo(title="Last Track", raw_title="Last Track", url="https://url.com", duration=100, uploader="U")
     discord_player.add_to_queue([track])
     discord_player.current_index = 0
     discord_player.current_track = track
