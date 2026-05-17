@@ -58,37 +58,61 @@ class TestMusicService:
             ]
         }
         
-        with patch.object(service.ytdl, 'extract_info', return_value=mock_data):
+        with patch("yt_dlp.YoutubeDL") as mock_ytdl:
+            mock_inst = mock_ytdl.return_value
+            mock_inst.extract_info.return_value = mock_data
+            mock_inst.__enter__.return_value = mock_inst
+            
             tracks = await service.search_tracks("test query", max_results=2)
             
             assert len(tracks) == 2
-            assert tracks[0]["title"] == "Test Track 1"
-            assert tracks[0]["duration"] == 180
-            assert tracks[1]["title"] == "Test Track 2"
+            assert tracks[0].title == "Test Track 1"
+            assert tracks[0].duration == 180
+            assert tracks[1].title == "Test Track 2"
             
     @pytest.mark.asyncio
     async def test_search_tracks_cache(self, service):
         """Тест использования кэша при поиске."""
-        service._search_cache["cached query:5"] = [{"title": "Cached Track"}]
+        from src.schemas import TrackInfo
+        cached_track = TrackInfo(
+            title="Cached Track",
+            raw_title="Cached Track",
+            url="https://youtube.com/watch?v=cached",
+            duration=180,
+            thumbnail="https://example.com/thumb.jpg",
+            uploader="Test Uploader",
+            id="cached"
+        )
+        service._search_cache["cached query:5:False"] = [cached_track]
         
-        with patch.object(service.ytdl, 'extract_info') as mock_extract:
+        with patch("yt_dlp.YoutubeDL") as mock_ytdl:
+            mock_inst = mock_ytdl.return_value
+            mock_inst.__enter__.return_value = mock_inst
             tracks = await service.search_tracks("cached query")
             
-            mock_extract.assert_not_called()
+            mock_inst.extract_info.assert_not_called()
             assert len(tracks) == 1
-            assert tracks[0]["title"] == "Cached Track"
+            assert tracks[0].title == "Cached Track"
 
     @pytest.mark.asyncio
     async def test_search_tracks_no_results(self, service):
         """Тест поиска без результатов."""
-        with patch.object(service.ytdl, 'extract_info', return_value=None):
+        with patch("yt_dlp.YoutubeDL") as mock_ytdl:
+            mock_inst = mock_ytdl.return_value
+            mock_inst.extract_info.return_value = None
+            mock_inst.__enter__.return_value = mock_inst
+            
             tracks = await service.search_tracks("nonexistent query")
             assert tracks == []
     
     @pytest.mark.asyncio
     async def test_search_tracks_error(self, service):
         """Тест обработки ошибки при поиске."""
-        with patch.object(service.ytdl, 'extract_info', side_effect=Exception("Test error")):
+        with patch("yt_dlp.YoutubeDL") as mock_ytdl:
+            mock_inst = mock_ytdl.return_value
+            mock_inst.extract_info.side_effect = Exception("Test error")
+            mock_inst.__enter__.return_value = mock_inst
+            
             tracks = await service.search_tracks("test query")
             assert tracks == []
     
@@ -108,20 +132,30 @@ class TestMusicService:
             track_info = await service.get_track_info("https://youtube.com/watch?v=test")
             
             assert track_info is not None
-            assert track_info["title"] == "Test Track"
-            assert track_info["duration"] == 180
+            assert track_info.title == "Test Track"
+            assert track_info.duration == 180
             
     @pytest.mark.asyncio
     async def test_get_track_info_cache(self, service):
         """Тест кэша для информации о треке."""
-        service._info_cache["http://cached.url"] = {"title": "Cached"}
+        from src.schemas import TrackInfo
+        cached_track = TrackInfo(
+            title="Cached",
+            raw_title="Cached",
+            url="http://cached.url",
+            duration=180,
+            thumbnail="https://example.com/thumb.jpg",
+            uploader="Test Uploader",
+            id="cached"
+        )
+        service._info_cache["http://cached.url"] = cached_track
         
         with patch.object(service.ytdl, 'extract_info') as mock_extract:
             track_info = await service.get_track_info("http://cached.url")
             
             mock_extract.assert_not_called()
             assert track_info is not None
-            assert track_info["title"] == "Cached"
+            assert track_info.title == "Cached"
 
     @pytest.mark.asyncio
     async def test_get_track_info_error(self, service):
@@ -133,52 +167,40 @@ class TestMusicService:
     @pytest.mark.asyncio
     async def test_get_audio_source_success(self, service):
         """Тест получения аудио-источника."""
-        import sys
-        
-        # Mocking discord for tests without actual discord setup
-        mock_discord = MagicMock()
         mock_source = MagicMock()
-        mock_discord.FFmpegPCMAudio = MagicMock(return_value=mock_source)
-        
-        # Apply mock discord module globally for the test duration
-        with patch.dict(sys.modules, {'discord': mock_discord}):
-            mock_data = {
-                "entries": [
-                    {
-                        "url": "https://audio.stream.url",
-                    }
-                ]
-            }
+        mock_data = {
+            "entries": [
+                {
+                    "url": "https://audio.stream.url",
+                }
+            ]
+        }
+        with patch("src.services.music_service.discord.FFmpegPCMAudio", return_value=mock_source) as mock_ffmpeg:
             with patch.object(service.ytdl, 'extract_info', return_value=mock_data):
                 source = await service.get_audio_source("https://youtube.com/watch?v=test", start_time=10)
                 
-                assert source is mock_source
-                mock_discord.FFmpegPCMAudio.assert_called_once()
-                args, kwargs = mock_discord.FFmpegPCMAudio.call_args
+                assert source is not None
+                assert source[0] is mock_source
+                mock_ffmpeg.assert_called_once()
+                args, kwargs = mock_ffmpeg.call_args
                 assert args[0] == "https://audio.stream.url"
-                assert "options" in kwargs
-                assert "-ss 10" in kwargs["options"]
+                assert "before_options" in kwargs
+                assert "-ss 10" in kwargs["before_options"]
 
     @pytest.mark.asyncio
     async def test_get_audio_source_no_url(self, service):
         """Тест неудачного получения аудио-источника (нет url)."""
-        import sys
-        mock_discord = MagicMock()
-        with patch.dict(sys.modules, {'discord': mock_discord}):
-            mock_data = {"entries": [{"other": "data"}]}
-            with patch.object(service.ytdl, 'extract_info', return_value=mock_data):
-                source = await service.get_audio_source("https://youtube.com/watch?v=test")
-                assert source is None
+        mock_data = {"entries": [{"other": "data"}]}
+        with patch.object(service.ytdl, 'extract_info', return_value=mock_data):
+            source = await service.get_audio_source("https://youtube.com/watch?v=test")
+            assert source is None
 
     @pytest.mark.asyncio
     async def test_get_audio_source_error(self, service):
         """Тест ошибки при получении аудио-источника."""
-        import sys
-        mock_discord = MagicMock()
-        with patch.dict(sys.modules, {'discord': mock_discord}):
-            with patch.object(service.ytdl, 'extract_info', side_effect=Exception("API error")):
-                source = await service.get_audio_source("https://youtube.com/watch?v=test")
-                assert source is None
+        with patch.object(service.ytdl, 'extract_info', side_effect=Exception("API error")):
+            source = await service.get_audio_source("https://youtube.com/watch?v=test")
+            assert source is None
     
     def test_format_duration(self, service):
         """Тест форматирования длительности."""
