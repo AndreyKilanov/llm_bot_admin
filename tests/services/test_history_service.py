@@ -38,8 +38,8 @@ async def test_get_last_messages():
     msgs = await HistoryService.get_last_messages(chat_id=4, limit=1)
     # The limit is multiplied by 2 in the method (limit*2) so it gets 2 messages
     assert len(msgs) == 2
-    assert msgs[0]["content"] == "msg1"
-    assert msgs[1]["content"] == "msg2"
+    assert msgs[0].content == "msg1"
+    assert msgs[1].content == "msg2"
 
 @pytest.mark.asyncio
 async def test_clear_history():
@@ -64,21 +64,21 @@ async def test_get_stats():
     await HistoryService.add_message(chat_id=9, role="user", content="u2", platform="discord")
     
     stats = await HistoryService.get_stats()
-    assert stats["chats_count"] == 2
-    assert stats["total_messages"] == 3
-    assert stats["telegram_messages"] == 2
-    assert stats["discord_messages"] == 1
-    assert stats["assistant_messages"] == 1
-    assert stats["user_messages"] == 2
-    assert stats["messages_24h"] == 3
-    assert stats["active_chats_24h"] == 2
+    assert stats.chats_count == 2
+    assert stats.total_messages == 3
+    assert stats.telegram_messages == 2
+    assert stats.discord_messages == 1
+    assert stats.assistant_messages == 1
+    assert stats.user_messages == 2
+    assert stats.messages_24h == 3
+    assert stats.active_chats_24h == 2
 
 @pytest.mark.asyncio
 async def test_list_chats():
     await HistoryService.add_message(chat_id=10, role="user", content="u", platform="telegram", chat_type="private")
     chats = await HistoryService.list_chats()
     assert len(chats) == 1
-    assert chats[0]["chat_id"] == 10
-    assert chats[0]["message_count"] == 1
-    assert chats[0]["platform"] == "telegram"
-    assert chats[0]["chat_type"] == "private"
+    assert chats[0].chat_id == 10
+    assert chats[0].message_count == 1
+    assert chats[0].platform == "telegram"
+    assert chats[0].chat_type == "private"
