@@ -10,3 +10,5 @@ data/
 migrations/
 logs/
 .continue/
+dev_plan/
+dev_plan/reports/
