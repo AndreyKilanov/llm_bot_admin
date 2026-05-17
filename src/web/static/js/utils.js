@@ -60,6 +60,13 @@ async function api(url, method = "GET", body = null) {
     const opts = { method, headers: { "Content-Type": "application/json" } };
     if (body) opts.body = JSON.stringify(body);
 
+    if (method !== "GET") {
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+        if (csrfToken) {
+            opts.headers["X-CSRF-Token"] = csrfToken;
+        }
+    }
+
     try {
         const r = await fetch("/admin/api" + url, opts);
 
