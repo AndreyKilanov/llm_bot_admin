@@ -218,7 +218,11 @@ async def test_generate_response_success(mock_llm_client):
     # Assert get_completion was called properly
     mock_llm_client.get_completion.assert_called_once()
     kwargs = mock_llm_client.get_completion.call_args.kwargs
-    assert kwargs["messages"] == [{"role": "system", "content": "Sys"}, {"role": "user", "content": "hi"}]
+    messages_dicts = [
+        {"role": m.role if hasattr(m, "role") else m.get("role"), "content": m.content if hasattr(m, "content") else m.get("content")}
+        for m in kwargs["messages"]
+    ]
+    assert messages_dicts == [{"role": "system", "content": "Sys"}, {"role": "user", "content": "hi"}]
     assert kwargs["api_key"] == "k"
     assert kwargs["model"] == "m"
 
