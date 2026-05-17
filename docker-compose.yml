@@ -39,17 +39,19 @@ services:
     restart: unless-stopped
 
   nginx:
-    image: nginx:alpine
+    build: ./nginx
     env_file: .env
     environment:
       - APP_PORT=${APP_PORT:-8000}
       - NGINX_INTERNAL_PORT=80
     ports:
       - "${NGINX_PORT:-80}:80"
+      - "${NGINX_SSL_PORT:-443}:443"
     volumes:
       - ./nginx/default.conf.template:/etc/nginx/templates/default.conf.template:ro
       - ./src/web/static/errors:/usr/share/nginx/html/errors:ro
       - ./src/web/static/images:/usr/share/nginx/html/images:ro
+      - ./nginx/ssl:/etc/nginx/ssl
     depends_on:
       - app
     networks:
