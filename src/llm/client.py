@@ -33,10 +33,12 @@ class LLMClient:
         Returns:
             Текст ответа ассистента.
         """
-        filtered_messages = [
-            {"role": m.role, "content": m.content} 
-            for m in messages if m.content
-        ]
+        filtered_messages = []
+        for m in messages:
+            role = m.role if hasattr(m, "role") else m.get("role")
+            content = m.content if hasattr(m, "content") else m.get("content")
+            if content:
+                filtered_messages.append({"role": role, "content": content})
         if not filtered_messages:
             raise ValueError("No messages to send")
 
